@@ -1,4 +1,5 @@
 import yaml
+from pypxlib import Table
 
 
 class Config:
@@ -20,6 +21,9 @@ class Processor:
     def load_data(self):
         for market_name, market_info in self.config_data.items():
             print(market_info)
+            table = Table(market_info["path_to_db"], encoding='windows-1251')
+            for row in table:
+                print(row)
 
 def main():
     config = Config("./config.yaml")
