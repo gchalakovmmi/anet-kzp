@@ -1,2 +1,4 @@
 PyYAML
 pypxlib
+numpy
+pandas
