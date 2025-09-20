@@ -1,0 +1,10 @@
+AnetMRA:
+  settlement: "Бургас"
+  name: "Анет4 Меден Рудник А"
+  address: "гр. Бургас ул. ХХХ №Х"
+  pathToDB: ./items.DB
+AnetMRB:
+  settlement: "Бургас"
+  name: "Анет4 Меден Рудник Б"
+  address: "гр. Бургас ул. ХХХ №Х"
+  pathToDB: ./items.DB
