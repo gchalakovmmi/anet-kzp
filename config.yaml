@@ -1,10 +1,10 @@
 AnetMRA:
-  settlement: "Бургас"
+  settlement: 07079 # Burgas. See: https://www.nsi.bg/nrnm/ekatte/index OR https://www.ekatte.com
   name: "Анет4 Меден Рудник А"
   address: "гр. Бургас ул. ХХХ №Х"
   path_to_db: ./items.DB
 AnetMRB:
-  settlement: "Бургас"
+  settlement: 07079 # Burgas. See: https://www.nsi.bg/nrnm/ekatte/index OR https://www.ekatte.com
   name: "Анет4 Меден Рудник Б"
   address: "гр. Бургас ул. ХХХ №Х"
   path_to_db: ./items.DB
