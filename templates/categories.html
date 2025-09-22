@@ -13,13 +13,14 @@
 			--accent-color: #8fbc8f;
 			--light-color: #f8f9fa;
 			--dark-color: #343a40;
+			--categorized-bg: #e8f5e8;
+			--categorized-border: #c8e6c9;
 		}
 		
 		html, body {
 			height: 100%;
 			margin: 0;
 			padding: 0;
-			overflow: hidden;
 			background-color: #f5f5f5;
 			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 		}
@@ -45,7 +46,30 @@
 		.card-body {
 			padding: 1rem;
 			overflow-y: auto;
-			height: calc(100% - 60px);
+			display: flex;
+			flex-direction: column;
+		}
+		
+		.loading-screen {
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			height: 100%;
+			text-align: center;
+		}
+		
+		.progress {
+			width: 80%;
+			height: 20px;
+			margin: 20px 0;
+		}
+		
+		.main-content {
+			display: none;
+			flex: 1;
+			flex-direction: column;
+			min-height: 0;
 		}
 		
 		.btn-primary {
@@ -79,8 +103,28 @@
 			border-color: #7aa87a;
 		}
 		
+		.btn-export {
+			background-color: #6c757d;
+			border-color: #6c757d;
+			color: white;
+		}
+		
+		.btn-export:hover {
+			background-color: #5a6268;
+			border-color: #545b62;
+		}
+		
 		.table-hover tbody tr:hover {
 			background-color: rgba(143, 188, 143, 0.1);
+		}
+		
+		.categorized-row {
+			background-color: var(--categorized-bg) !important;
+			border-left: 4px solid var(--categorized-border);
+		}
+		
+		.categorized-row:hover {
+			background-color: #d4edda !important;
 		}
 		
 		.search-section {
@@ -92,10 +136,11 @@
 		}
 		
 		.table-container {
-			height: calc(100% - 320px);
+			flex: 1;
 			overflow-y: auto;
 			border: 1px solid #dee2e6;
 			border-radius: 0.375rem;
+			background-color: white;
 		}
 		
 		.table {
@@ -108,394 +153,450 @@
 			background-color: #e9ecef;
 			z-index: 10;
 		}
+		
+		.error-message {
+			color: #dc3545;
+			background-color: #f8d7da;
+			border: 1px solid #f5c6cb;
+			border-radius: 0.375rem;
+			padding: 1rem;
+			margin: 1rem 0;
+		}
+		
+		.no-results {
+			text-align: center;
+			padding: 2rem;
+			color: #6c757d;
+		}
+		
+		.action-buttons {
+			display: flex;
+			gap: 0.5rem;
+			justify-content: flex-end;
+		}
+		
+		.category-badge {
+			background-color: var(--accent-color);
+			color: var(--dark-color);
+			font-weight: 500;
+			padding: 0.25rem 0.5rem;
+			border-radius: 0.25rem;
+			font-size: 0.875rem;
+		}
 	</style>
 </head>
 <body>
 	<div class="container-fluid">
 		<div class="card shadow">
-			<div class="card-header">
+			<div class="card-header d-flex justify-content-between align-items-center">
 				<h1 class="h3 mb-0"><i class="bi bi-cart-check"></i> Добавяне на продукти в категории</h1>
+				<button id="exportCsv" class="btn btn-export" disabled>
+					<i class="bi bi-download"></i> Експорт CSV
+				</button>
 			</div>
 			<div class="card-body">
-				<!-- Category selection -->
-				<div class="row mb-3">
-					<div class="col-md-12">
-						<label for="categorySelect" class="form-label fw-bold">Избери категория:</label>
-						<select class="form-select" id="categorySelect">
-							<option value="" selected>-- Моля, изберете категория --</option>
-							<option value="1">1. Бял хляб от 500 гр. до 1 кг</option>
-							<option value="2">2. Хляб Добруджа от 500 гр. до 1 кг</option>
-							<option value="3">3. Ръжен хляб от 400 гр. до 600 гр.</option>
-							<option value="4">4. Типов хляб от 400 гр. до 600 гр.</option>
-							<option value="5">5. Точени кори от 400 гр. до 500 гр.</option>
-							<option value="6">6. Прясно мляко от 2 % до 3.6 % 1 л</option>
-							<option value="7">7. Кисело мляко от 2 % до 3.6 % в кофички от 370 гр. до 500 гр.</option>
-							<option value="8">8. Сирене от краве мляко насипно 1 кг</option>
-							<option value="9">9. Сирене от краве мляко пакетирано за 1 кг</option>
-							<option value="10">10. Кашкавал от краве мляко насипно 1 кг</option>
-							<option value="11">11. Кашкавал от краве мляко пакетирано за 1 кг</option>
-							<option value="12">12. Краве масло от 125 гр. до 250 гр.</option>
-							<option value="13">13. Извара насипна 1 кг.</option>
-							<option value="14">14. Извара пакетирана от 200 гр. до 1 кг.</option>
-							<option value="15">15. Прясно охладено пиле 1 кг (цяло)</option>
-							<option value="16">16. Пилешко филе, охладено, 1 кг</option>
-							<option value="17">17. Пилешки бут, цял, охладен 1 кг</option>
-							<option value="18">18. Прясно свинско месо плешка 1 кг</option>
-							<option value="19">19. Прясно свинско месо бут 1 кг</option>
-							<option value="20">20. Прясно свинско месо шол 1 кг</option>
-							<option value="21">21. Прясно свинско месо врат 1 кг</option>
-							<option value="22">22. Свинско месо за готвене 1 кг</option>
-							<option value="23">23. Телешко месо шол 1 кг</option>
-							<option value="24">24. Телешко месо за готвене 1 кг</option>
-							<option value="25">25. Мляно месо смес 60/40, насипно за 1 кг</option>
-							<option value="26">26. Кренвирши, насипни за 1 кг.</option>
-							<option value="27">27. Колбаси пресни от 300 гр. до 1 кг.</option>
-							<option value="28">28. Колбаси сухи (Шпек, Бургас, Деликатесен) от 250 гр. до 1 кг.</option>
-							<option value="29">29. Риба замразена (скумрия, пъстърва, лаврак, ципура) 1 кг</option>
-							<option value="31">31. Яйца размер М от 6 бр. до 10 бр. Подово отглеждане</option>
-							<option value="32">32. Яйца размер L 6 бр. до 10 бр. Подово отглеждане</option>
-							<option value="33">33. Боб, пакетиран 1 кг</option>
-							<option value="34">34. Леща, пакетиран 1 кг</option>
-							<option value="35">35. Бисерен ориз 1 кг</option>
-							<option value="36">36. Макарони от 400 гр. до 500 гр.</option>
-							<option value="37">37. Спагети (№ 3, № 5 и № 10) 500 гр.</option>
-							<option value="38">38. Бяла захар 1 кг</option>
-							<option value="39">39. Готварска сол 1 кг</option>
-							<option value="40">40. Брашно тип 500 1 кг</option>
-							<option value="41">41. Брашно екстра 1 кг</option>
-							<option value="42">42. Олио слънчогледово 1 л</option>
-							<option value="43">43. Зехтин 1л</option>
-							<option value="44">44. Винен оцет 700 мл.</option>
-							<option value="45">45. Ябълков оцет 700 мл.</option>
-							<option value="46">46. Консерви боб, от 400 гр. до 800 гр.</option>
-							<option value="47">47. Консерви грах, от 400 гр. до 800 гр.</option>
-							<option value="48">48. Консервирани домати, от 400 гр. до 800 гр.</option>
-							<option value="49">49. Лютеница, от 400 гр. до 800 гр.</option>
-							<option value="62">62. Маслини, насипни 1 кг</option>
-							<option value="63">63. Каша (млечна, плодова) от 190 гр. до 250 гр.</option>
-							<option value="64">64. Детско пюре от 190 гр. до 250 гр.</option>
-							<option value="65">65. Адаптирани млека от 400 гр. до 800 гр.</option>
-							<option value="66">66. Обикновени бисквити</option>
-							<option value="67">67. Кроасани от 50 гр. до 110 гр.</option>
-							<option value="68">68. Баница от 100 гр. до 500 гр.</option>
-							<option value="69">69. Шоколад, млечен, от 80 гр. до 100 гр.</option>
-							<option value="70">70. Кафе мляно от 200 гр. до 250 гр.</option>
-							<option value="71">71. Кафе на зърна 1 кг</option>
-							<option value="72">72. Чай (билков на пакетчета)</option>
-							<option value="73">73. Минерална вода, 6 бр. в опаковка по 1,5 л.</option>
-							<option value="74">74. Светла бира 2 л.</option>
-							<option value="75">75. Бяло вино бутилирано, произход България 750 мл.</option>
-							<option value="76">76. Червено вино бутилирано, произход България 750 мл.</option>
-							<option value="77">77. Ракия, произход България 700 мл.</option>
-							<option value="78">78. Тютюневи изделия, произход България, кутия, пакет</option>
-							<option value="79">79. Течен препарат за миене на съдове от 400 мл.</option>
-							<option value="80">80. Четка за зъби – средна твърдост</option>
-							<option value="81">81. Паста за зъби, туба от 50 мл. до 125 мл.</option>
-							<option value="82">82. Шампоан за нормална коса – от 250 мл. до 500 мл.</option>
-							<option value="83">83. Сапун, твърд</option>
-							<option value="84">84. Класически мокри кърпи пакет</option>
-							<option value="85">85. Тоалетна хартия 8 ролки</option>
-						</select>
+				<!-- Loading Screen -->
+				<div id="loadingScreen" class="loading-screen">
+					<div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status">
+						<span class="visually-hidden">Loading...</span>
+					</div>
+					<h3 class="mt-3" id="loadingTitle">Зареждане на данни...</h3>
+					<p id="loadingMessage">Моля, изчакайте докато се обработват данните от базата.</p>
+					
+					<div class="progress">
+						<div id="loadingProgress" class="progress-bar progress-bar-striped progress-bar-animated" 
+							 role="progressbar" style="width: 0%"></div>
+					</div>
+					
+					<div id="loadingDetails" class="mt-2">
+						<small>Обработва се: <span id="currentMarket">-</span></small><br>
+						<small>Прогрес: <span id="progressPercent">0</span>%</small>
+					</div>
+					
+					<div id="errorMessage" class="error-message mt-3" style="display: none;">
+						<h5><i class="bi bi-exclamation-triangle"></i> Грешка при обработка на данните</h5>
+						<p id="errorText"></p>
+						<button class="btn btn-warning mt-2" onclick="location.reload()">Опитайте отново</button>
 					</div>
 				</div>
+				
+				<!-- Main Content (hidden until loading completes) -->
+				<div id="mainContent" class="main-content">
+					<!-- Category selection -->
+					<div class="row mb-3">
+						<div class="col-md-12">
+							<label for="categorySelect" class="form-label fw-bold">Избери категория:</label>
+							<select class="form-select" id="categorySelect">
+								<option value="" selected>-- Моля, изберете категория --</option>
+								<option value="1">1. Бял хляб от 500 гр. до 1 кг</option>
+								<option value="2">2. Хляб Добруджа от 500 гр. до 1 кг</option>
+								<option value="3">3. Ръжен хляб от 400 гр. до 600 гр.</option>
+								<option value="4">4. Типов хляб от 400 гр. до 600 гр.</option>
+								<option value="5">5. Точени кори от 400 гр. до 500 гр.</option>
+								<option value="6">6. Прясно мляко от 2 % до 3.6 % 1 л</option>
+								<option value="7">7. Кисело мляко от 2 % до 3.6 % в кофички от 370 гр. до 500 гр.</option>
+								<option value="8">8. Сирене от краве мляко насипно 1 кг</option>
+								<option value="9">9. Сирене от краве мляко пакетирано за 1 кг</option>
+								<option value="10">10. Кашкавал от краве мляко насипно 1 кг</option>
+								<option value="11">11. Кашкавал от краве мляко пакетирано за 1 кг</option>
+								<option value="12">12. Краве масло от 125 гр. до 250 гр.</option>
+								<option value="13">13. Извара насипна 1 кг.</option>
+								<option value="14">14. Извара пакетирана от 200 гр. до 1 кг.</option>
+								<option value="15">15. Прясно охладено пиле 1 кг (цяло)</option>
+								<option value="16">16. Пилешко филе, охладено, 1 кг</option>
+								<option value="17">17. Пилешки бут, цял, охладен 1 кг</option>
+								<option value="18">18. Прясно свинско месо плешка 1 кг</option>
+								<option value="19">19. Прясно свинско месо бут 1 кг</option>
+								<option value="20">20. Прясно свинско месо шол 1 кг</option>
+								<option value="21">21. Прясно свинско месо врат 1 кг</option>
+								<option value="22">22. Свинско месо за готвене 1 кг</option>
+								<option value="23">23. Телешко месо шол 1 кг</option>
+								<option value="24">24. Телешко месо за готвене 1 кг</option>
+								<option value="25">25. Мляно месо смес 60/40, насипно за 1 кг</option>
+								<option value="26">26. Кренвирши, насипни за 1 кг.</option>
+								<option value="27">27. Колбаси пресни от 300 гр. до 1 кг.</option>
+								<option value="28">28. Колбаси сухи (Шпек, Бургас, Деликатесен) от 250 гр. до 1 кг.</option>
+								<option value="29">29. Риба замразена (скумрия, пъстърва, лаврак, ципура) 1 кг</option>
+								<option value="31">31. Яйца размер М от 6 бр. до 10 бр. Подово отглеждане</option>
+								<option value="32">32. Яйца размер L 6 бр. до 10 бр. Подово отглеждане</option>
+								<option value="33">33. Боб, пакетиран 1 кг</option>
+								<option value="34">34. Леща, пакетиран 1 кг</option>
+								<option value="35">35. Бисерен ориз 1 кг</option>
+								<option value="36">36. Макарони от 400 гр. до 500 гр.</option>
+								<option value="37">37. Спагети (№ 3, № 5 и № 10) 500 гр.</option>
+								<option value="38">38. Бяла захар 1 кг</option>
+								<option value="39">39. Готварска сол 1 кг</option>
+								<option value="40">40. Брашно тип 500 1 кг</option>
+								<option value="41">41. Брашно екстра 1 кг</option>
+								<option value="42">42. Олио слънчогледово 1 л</option>
+								<option value="43">43. Зехтин 1л</option>
+								<option value="44">44. Винен оцет 700 мл.</option>
+								<option value="45">45. Ябълков оцет 700 мл.</option>
+								<option value="46">46. Консерви боб, от 400 гр. до 800 гр.</option>
+								<option value="47">47. Консерви грах, от 400 гр. до 800 гр.</option>
+								<option value="48">48. Консервирани домати, от 400 гр. до 800 гр.</option>
+								<option value="49">49. Лютеница, от 400 гр. до 800 гр.</option>
+								<option value="62">62. Маслини, насипни 1 кг</option>
+								<option value="63">63. Каша (млечна, плодова) от 190 гр. до 250 гр.</option>
+								<option value="64">64. Детско пюре от 190 гр. до 250 гр.</option>
+								<option value="65">65. Адаптирани млека от 400 гр. до 800 гр.</option>
+								<option value="66">66. Обикновени бисквити</option>
+								<option value="67">67. Кроасани от 50 гр. до 110 гр.</option>
+								<option value="68">68. Баница от 100 гр. до 500 гр.</option>
+								<option value="69">69. Шоколад, млечен, от 80 гр. до 100 гр.</option>
+								<option value="70">70. Кафе мляно от 200 гр. до 250 гр.</option>
+								<option value="71">71. Кафе на зърна 1 кг</option>
+								<option value="72">72. Чай (билков на пакетчета)</option>
+								<option value="73">73. Минерална вода, 6 бр. в опаковка по 1,5 л.</option>
+								<option value="74">74. Светла бира 2 л.</option>
+								<option value="75">75. Бяло вино бутилирано, произход България 750 мл.</option>
+								<option value="76">76. Червено вино бутилирано, произход България 750 мл.</option>
+								<option value="77">77. Ракия, произход България 700 мл.</option>
+								<option value="78">78. Тютюневи изделия, произход България, кутия, пакет</option>
+								<option value="79">79. Течен препарат за миене на съдове от 400 мл.</option>
+								<option value="80">80. Четка за зъби – средна твърдост</option>
+								<option value="81">81. Паста за зъби, туба от 50 мл. до 125 мл.</option>
+								<option value="82">82. Шампоан за нормална коса – от 250 мл. до 500 мл.</option>
+								<option value="83">83. Сапун, твърд</option>
+								<option value="84">84. Класически мокри кърпи пакет</option>
+								<option value="85">85. Тоалетна хартия 8 ролки</option>
+							</select>
+						</div>
+					</div>
 
-				<!-- Search section -->
-				<div class="search-section">
-					<div class="row">
-						<div class="col-md-8">
-							<div class="input-group">
-								<span class="input-group-text bg-light">
-									<i class="bi bi-search"></i>
-								</span>
-								<input type="text" class="form-control" placeholder="Търсене на продукти..." id="searchInput">
-								<button class="btn btn-primary" type="button" id="searchButton">
-									Търси
+					<!-- Search section -->
+					<div class="search-section">
+						<div class="row">
+							<div class="col-md-8">
+								<div class="input-group">
+									<span class="input-group-text bg-light">
+										<i class="bi bi-search"></i>
+									</span>
+									<input type="text" class="form-control" placeholder="Търсене на продукти..." id="searchInput">
+									<button class="btn btn-primary" type="button" id="searchButton">
+										Търси
+									</button>
+								</div>
+							</div>
+							<div class="col-md-4 action-buttons">
+								<button class="btn btn-success" id="addToCategory">
+									<i class="bi bi-plus-circle"></i> Добави към категория
+								</button>
+								<button class="btn btn-outline-secondary" id="clearSelection">
+									Изчисти избора
 								</button>
 							</div>
 						</div>
-						<div class="col-md-4 d-flex align-items-center justify-content-end">
-							<button class="btn btn-success me-2" id="addToCategory">
-								<i class="bi bi-plus-circle"></i> Добави към категория
-							</button>
-							<button class="btn btn-outline-secondary" id="clearSelection">
-								Изчисти избора
-							</button>
+					</div>
+
+					<!-- Items table -->
+					<div class="table-container">
+						<table class="table table-hover">
+							<thead class="table-light">
+								<tr>
+									<th scope="col" width="50">
+										<div class="form-check">
+											<input class="form-check-input" type="checkbox" id="selectAll">
+											<label class="form-check-label" for="selectAll"></label>
+										</div>
+									</th>
+									<th scope="col">Населено място</th>
+									<th scope="col">Търговски обект</th>
+									<th scope="col">Наименование на продукта</th>
+									<th scope="col">Код на продукта</th>
+									<th scope="col">Категория</th>
+									<th scope="col">Цена на дребно</th>
+									<th scope="col">Цена в промоция</th>
+								</tr>
+							</thead>
+							<tbody id="productsTableBody">
+								<!-- Table rows will be populated by JavaScript -->
+							</tbody>
+						</table>
+						<div id="noResults" class="no-results" style="display: none;">
+							<i class="bi bi-search" style="font-size: 3rem;"></i>
+							<h4>Няма намерени продукти</h4>
+							<p>Променете критериите за търсене и опитайте отново.</p>
 						</div>
 					</div>
-				</div>
 
-				<!-- Items table -->
-				<div class="table-container">
-					<table class="table table-hover">
-						<thead class="table-light">
-							<tr>
-								<th scope="col" width="50">
-									<div class="form-check">
-										<input class="form-check-input" type="checkbox" id="selectAll">
-										<label class="form-check-label" for="selectAll"></label>
-									</div>
-								</th>
-								<th scope="col">Населено място</th>
-								<th scope="col">Търговски обект</th>
-								<th scope="col">Наименование на продукта</th>
-								<th scope="col">Код на продукта</th>
-								<th scope="col">Категория</th>
-								<th scope="col">Цена на дребно</th>
-								<th scope="col">Цена в промоция</th>
-							</tr>
-						</thead>
-						<tbody>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="1">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Бял хляб Премиум 600г</td>
-								<td>BLD001</td>
-								<td></td>
-								<td>1.89</td>
-								<td>1.69</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="2">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Прясно мляко 3.6% 1л</td>
-								<td>MLK002</td>
-								<td></td>
-								<td>2.49</td>
-								<td></td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="3">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Яйца размер М 10 бр.</td>
-								<td>EGG003</td>
-								<td></td>
-								<td>4.99</td>
-								<td>3.99</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="4">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Пилешко филе 1кг</td>
-								<td>CHK004</td>
-								<td></td>
-								<td>12.99</td>
-								<td>10.99</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="5">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Домати червени 1кг</td>
-								<td>TOM005</td>
-								<td></td>
-								<td>3.49</td>
-								<td></td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="6">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Банани 1кг</td>
-								<td>BAN006</td>
-								<td></td>
-								<td>2.99</td>
-								<td>2.49</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="7">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Олио слънчогледово 1л</td>
-								<td>OIL007</td>
-								<td></td>
-								<td>4.29</td>
-								<td>3.79</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="8">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Кафе мляно 250г</td>
-								<td>COF008</td>
-								<td></td>
-								<td>6.99</td>
-								<td>5.99</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="9">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Сирене кашкавал 500г</td>
-								<td>CHS009</td>
-								<td></td>
-								<td>8.99</td>
-								<td>7.49</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="10">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Брашно тип 500 1кг</td>
-								<td>FLR010</td>
-								<td></td>
-								<td>1.79</td>
-								<td>1.49</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="11">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Захар бяла 1кг</td>
-								<td>SGR011</td>
-								<td></td>
-								<td>1.99</td>
-								<td>1.69</td>
-							</tr>
-							<tr>
-								<td>
-									<div class="form-check">
-										<input class="form-check-input item-checkbox" type="checkbox" name="item" value="12">
-									</div>
-								</td>
-								<td>12345</td>
-								<td>Супермаркет "Билла" - София, Младост 1</td>
-								<td>Сол готварска 1кг</td>
-								<td>SAL012</td>
-								<td></td>
-								<td>0.99</td>
-								<td>0.79</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-
-				<!-- Selection summary -->
-				<div class="alert alert-info mt-3 mb-0">
-					<strong>Избрани продукти: <span id="selectedCount">0</span></strong>
+					<!-- Selection summary -->
+					<div class="alert alert-info mt-3 mb-0">
+						<strong>Избрани продукти: <span id="selectedCount">0</span></strong>
+					</div>
 				</div>
 			</div>
 		</div>
 	</div>
 
 	<script>
-		// Select all functionality
-		document.getElementById('selectAll').addEventListener('change', function() {
-			const checkboxes = document.querySelectorAll('.item-checkbox');
-			checkboxes.forEach(checkbox => {
-				checkbox.checked = this.checked;
-			});
-			updateSelectedCount();
-		});
-
-		// Clear selection button
-		document.getElementById('clearSelection').addEventListener('click', function() {
-			document.getElementById('selectAll').checked = false;
-			const checkboxes = document.querySelectorAll('.item-checkbox');
-			checkboxes.forEach(checkbox => {
-				checkbox.checked = false;
-			});
-			updateSelectedCount();
-		});
-
-		// Add to category button
-		document.getElementById('addToCategory').addEventListener('click', function() {
-			const selectedCategory = document.getElementById('categorySelect').value;
-			const selectedCategoryText = document.getElementById('categorySelect').options[document.getElementById('categorySelect').selectedIndex].text;
-			
-			if (!selectedCategory) {
-				alert('Моля, изберете категория преди да добавите продукти.');
-				return;
-			}
-			
-			const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
-			
-			if (selectedCheckboxes.length === 0) {
-				alert('Моля, изберете поне един продукт преди да го добавите към категория.');
-				return;
-			}
-			
-			selectedCheckboxes.forEach(checkbox => {
-				const row = checkbox.closest('tr');
-				const categoryCell = row.cells[5]; // Category is the 6th cell (index 5)
-				categoryCell.textContent = selectedCategoryText;
-			});
-			
-			alert(`Добавени ${selectedCheckboxes.length} продукта към категория: ${selectedCategoryText}`);
-		});
-
-		// Search button (non-functional for now)
-		document.getElementById('searchButton').addEventListener('click', function() {
-			const searchTerm = document.getElementById('searchInput').value;
-			if (searchTerm.trim() === '') {
-				alert('Моля, въведете термин за търсене.');
-			} else {
-				alert(`Търсене за: "${searchTerm}" (функционалността ще бъде имплементирана в бъдеще)`);
-			}
-		});
-
-		// Update selected count when any checkbox changes
-		const checkboxes = document.querySelectorAll('.item-checkbox');
-		checkboxes.forEach(checkbox => {
-			checkbox.addEventListener('change', updateSelectedCount);
-		});
-
-		// Function to update the selected items count
-		function updateSelectedCount() {
-			const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
-			document.getElementById('selectedCount').textContent = selectedCheckboxes.length;
-			
-			// Update select all checkbox state
-			const totalCheckboxes = document.querySelectorAll('.item-checkbox');
-			document.getElementById('selectAll').checked = selectedCheckboxes.length === totalCheckboxes.length;
+		let currentProducts = [];
+		
+		// Check processing status periodically
+		function checkProcessingStatus() {
+			fetch('/api/processing-status')
+				.then(response => response.json())
+				.then(data => {
+					// Update loading screen
+					document.getElementById('loadingProgress').style.width = data.progress + '%';
+					document.getElementById('progressPercent').textContent = data.progress;
+					document.getElementById('currentMarket').textContent = data.current_market || '-';
+					document.getElementById('loadingMessage').textContent = data.message;
+					
+					// Handle errors
+					if (data.error) {
+						document.getElementById('loadingTitle').textContent = 'Грешка при обработка';
+						document.getElementById('errorText').textContent = data.error;
+						document.getElementById('errorMessage').style.display = 'block';
+						return;
+					}
+					
+					// Check if processing is complete
+					if (!data.is_processing) {
+						// Hide loading screen and show main content
+						document.getElementById('loadingScreen').style.display = 'none';
+						document.getElementById('mainContent').style.display = 'flex';
+						
+						// Load initial data and initialize the main application
+						loadProducts();
+						initializeApplication();
+					} else {
+						// Continue checking status
+						setTimeout(checkProcessingStatus, 1000);
+					}
+				})
+				.catch(error => {
+					console.error('Error checking status:', error);
+					document.getElementById('loadingMessage').textContent = 'Грешка при свързване със сървъра. Опитване отново...';
+					setTimeout(checkProcessingStatus, 3000);
+				});
 		}
+		
+		// Load products from the server
+		function loadProducts(searchTerm = '') {
+			let url = '/api/search';
+			if (searchTerm) {
+				url += '?q=' + encodeURIComponent(searchTerm);
+			}
+			
+			fetch(url)
+				.then(response => response.json())
+				.then(data => {
+					if (data.error) {
+						console.error('Error loading products:', data.error);
+						return;
+					}
+					
+					currentProducts = data.products || [];
+					displayProducts(currentProducts);
+				})
+				.catch(error => {
+					console.error('Error loading products:', error);
+				});
+		}
+		
+		// Display products in the table
+		function displayProducts(products) {
+			const tbody = document.getElementById('productsTableBody');
+			const noResults = document.getElementById('noResults');
+			const exportButton = document.getElementById('exportCsv');
+			
+			if (products.length === 0) {
+				tbody.innerHTML = '';
+				noResults.style.display = 'block';
+				exportButton.disabled = true;
+				return;
+			}
+			
+			noResults.style.display = 'none';
+			exportButton.disabled = false;
+			
+			tbody.innerHTML = products.map(product => {
+				const isCategorized = product.item_kzp_category_code && product.item_kzp_category_code !== '';
+				const rowClass = isCategorized ? 'categorized-row' : '';
+				const categoryDisplay = isCategorized ? 
+					`<span class="category-badge">${product.item_kzp_category_name}</span>` : '';
+				
+				return `
+				<tr class="${rowClass}" data-product-id="${product.id}">
+					<td>
+						<div class="form-check">
+							<input class="form-check-input item-checkbox" type="checkbox" name="item" value="${product.id}">
+						</div>
+					</td>
+					<td>${product.settlement || ''}</td>
+					<td>${product.market_name || ''}</td>
+					<td>${product.item_name || ''}</td>
+					<td>${product.item_code || ''}</td>
+					<td>${categoryDisplay}</td>
+					<td>${product.item_retail_price || ''}</td>
+					<td>${product.item_promotional_price || ''}</td>
+				</tr>
+				`;
+			}).join('');
+			
+			// Update checkbox event listeners
+			const checkboxes = document.querySelectorAll('.item-checkbox');
+			checkboxes.forEach(checkbox => {
+				checkbox.addEventListener('change', updateSelectedCount);
+			});
+			
+			updateSelectedCount();
+		}
+		
+		// Initialize the main application after loading is complete
+		function initializeApplication() {
+			// Select all functionality
+			document.getElementById('selectAll').addEventListener('change', function() {
+				const checkboxes = document.querySelectorAll('.item-checkbox');
+				checkboxes.forEach(checkbox => {
+					checkbox.checked = this.checked;
+				});
+				updateSelectedCount();
+			});
+
+			// Clear selection button
+			document.getElementById('clearSelection').addEventListener('click', function() {
+				document.getElementById('selectAll').checked = false;
+				const checkboxes = document.querySelectorAll('.item-checkbox');
+				checkboxes.forEach(checkbox => {
+					checkbox.checked = false;
+				});
+				updateSelectedCount();
+			});
+
+			// Add to category button
+			document.getElementById('addToCategory').addEventListener('click', function() {
+				const selectedCategory = document.getElementById('categorySelect').value;
+				
+				if (!selectedCategory) {
+					alert('Моля, изберете категория преди да добавите продукти.');
+					return;
+				}
+				
+				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+				const selectedProductIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+				
+				if (selectedProductIds.length === 0) {
+					alert('Моля, изберете поне един продукт преди да го добавите към категория.');
+					return;
+				}
+				
+				// Send request to update categories
+				fetch('/api/update-category', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						product_ids: selectedProductIds,
+						category_code: selectedCategory
+					})
+				})
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						// Update the UI to show the new categories
+						selectedProductIds.forEach(productId => {
+							const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+							if (row) {
+								row.classList.add('categorized-row');
+								const categoryCell = row.cells[5];
+								categoryCell.innerHTML = `<span class="category-badge">${data.category_name}</span>`;
+							}
+						});
+						
+						alert(`Добавени ${data.updated_count} продукта към категория: ${data.category_name}`);
+						
+						// Clear selection
+						document.getElementById('selectAll').checked = false;
+						selectedCheckboxes.forEach(checkbox => {
+							checkbox.checked = false;
+						});
+						updateSelectedCount();
+					} else {
+						alert('Грешка при добавяне на категория: ' + data.error);
+					}
+				})
+				.catch(error => {
+					console.error('Error updating category:', error);
+					alert('Грешка при добавяне на категория.');
+				});
+			});
+
+			// Search functionality
+			document.getElementById('searchButton').addEventListener('click', function() {
+				const searchTerm = document.getElementById('searchInput').value.trim();
+				loadProducts(searchTerm);
+			});
+			
+			// Search on Enter key
+			document.getElementById('searchInput').addEventListener('keypress', function(e) {
+				if (e.key === 'Enter') {
+					document.getElementById('searchButton').click();
+				}
+			});
+
+			// Export CSV functionality
+			document.getElementById('exportCsv').addEventListener('click', function() {
+				window.open('/api/export-csv', '_blank');
+			});
+
+			// Update selected count when any checkbox changes
+			function updateSelectedCount() {
+				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+				document.getElementById('selectedCount').textContent = selectedCheckboxes.length;
+				
+				// Update select all checkbox state
+				const totalCheckboxes = document.querySelectorAll('.item-checkbox');
+				document.getElementById('selectAll').checked = selectedCheckboxes.length > 0 && selectedCheckboxes.length === totalCheckboxes.length;
+			}
+		}
+		
+		// Start checking processing status when page loads
+		document.addEventListener('DOMContentLoaded', function() {
+			checkProcessingStatus();
+		});
 	</script>
 </body>
 </html>

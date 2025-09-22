@@ -1,4 +1,3 @@
 PyYAML
 pypxlib
-numpy
-pandas
+Flask

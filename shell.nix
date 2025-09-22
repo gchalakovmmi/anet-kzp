@@ -10,7 +10,6 @@ pkgs.mkShell {
 		python.withPackages(p: with p; [
 			pyyaml
 			pypxlib
-			pandas
 			flask
 		])
 	)];
