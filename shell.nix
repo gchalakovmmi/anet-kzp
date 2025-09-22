@@ -11,6 +11,7 @@ pkgs.mkShell {
 			pyyaml
 			pypxlib
 			pandas
+			flask
 		])
 	)];
 }
