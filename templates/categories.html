@@ -169,6 +169,12 @@
 			color: #6c757d;
 		}
 		
+		.search-prompt {
+			text-align: center;
+			padding: 3rem;
+			color: #6c757d;
+		}
+		
 		.action-buttons {
 			display: flex;
 			gap: 0.5rem;
@@ -317,6 +323,7 @@
 										Търси
 									</button>
 								</div>
+								<small class="text-muted mt-1">Можете да търсите с части от думите, напр. "кис мл 2%" ще намери "кисело мляко 2%"</small>
 							</div>
 							<div class="col-md-4 action-buttons">
 								<button class="btn btn-success" id="addToCategory">
@@ -353,6 +360,12 @@
 								<!-- Table rows will be populated by JavaScript -->
 							</tbody>
 						</table>
+						<div id="searchPrompt" class="search-prompt" style="display: none;">
+							<i class="bi bi-search" style="font-size: 3rem;"></i>
+							<h4>Въведете критерии за търсене</h4>
+							<p>Използвайте полето за търсене по-горе, за да намерите продукти.</p>
+							<p><small>Можете да търсите с части от думите, напр. "кис мл" ще намери "кисело мляко"</small></p>
+						</div>
 						<div id="noResults" class="no-results" style="display: none;">
 							<i class="bi bi-search" style="font-size: 3rem;"></i>
 							<h4>Няма намерени продукти</h4>
@@ -397,8 +410,8 @@
 						document.getElementById('loadingScreen').style.display = 'none';
 						document.getElementById('mainContent').style.display = 'flex';
 						
-						// Load initial data and initialize the main application
-						loadProducts();
+						// Show search prompt initially
+						showSearchPrompt();
 						initializeApplication();
 					} else {
 						// Continue checking status
@@ -410,6 +423,19 @@
 					document.getElementById('loadingMessage').textContent = 'Грешка при свързване със сървъра. Опитване отново...';
 					setTimeout(checkProcessingStatus, 3000);
 				});
+		}
+		
+		// Show search prompt when no search term is entered
+		function showSearchPrompt() {
+			const tbody = document.getElementById('productsTableBody');
+			const noResults = document.getElementById('noResults');
+			const searchPrompt = document.getElementById('searchPrompt');
+			const exportButton = document.getElementById('exportCsv');
+			
+			tbody.innerHTML = '';
+			noResults.style.display = 'none';
+			searchPrompt.style.display = 'block';
+			exportButton.disabled = true;
 		}
 		
 		// Load products from the server
@@ -428,7 +454,7 @@
 					}
 					
 					currentProducts = data.products || [];
-					displayProducts(currentProducts);
+					displayProducts(currentProducts, data.search_term);
 				})
 				.catch(error => {
 					console.error('Error loading products:', error);
@@ -436,19 +462,31 @@
 		}
 		
 		// Display products in the table
-		function displayProducts(products) {
+		function displayProducts(products, searchTerm) {
 			const tbody = document.getElementById('productsTableBody');
 			const noResults = document.getElementById('noResults');
+			const searchPrompt = document.getElementById('searchPrompt');
 			const exportButton = document.getElementById('exportCsv');
+			
+			// Hide both prompts initially
+			noResults.style.display = 'none';
+			searchPrompt.style.display = 'none';
 			
 			if (products.length === 0) {
 				tbody.innerHTML = '';
-				noResults.style.display = 'block';
+				
+				if (!searchTerm || searchTerm.trim() === '') {
+					// Show search prompt when no search term
+					searchPrompt.style.display = 'block';
+				} else {
+					// Show no results when search term returns nothing
+					noResults.style.display = 'block';
+				}
+				
 				exportButton.disabled = true;
 				return;
 			}
 			
-			noResults.style.display = 'none';
 			exportButton.disabled = false;
 			
 			tbody.innerHTML = products.map(product => {
@@ -567,7 +605,11 @@
 			// Search functionality
 			document.getElementById('searchButton').addEventListener('click', function() {
 				const searchTerm = document.getElementById('searchInput').value.trim();
-				loadProducts(searchTerm);
+				if (searchTerm) {
+					loadProducts(searchTerm);
+				} else {
+					showSearchPrompt();
+				}
 			});
 			
 			// Search on Enter key

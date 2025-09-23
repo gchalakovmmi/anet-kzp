@@ -96,11 +96,31 @@ class Database:
 			return False
 			
 	def search_products(self, search_term: str) -> list:
-		"""Search products using FTS5 across multiple fields"""
+		"""Search products using FTS5 across multiple fields with flexible matching"""
 		if not search_term.strip():
-			# If search term is empty, return all products
-			return self.get_all_products()
+			# Return empty list when no search term to show prompt message
+			return []
 			
+		# Split search term into individual words
+		search_words = search_term.strip().split()
+		if not search_words:
+			return []
+			
+		# Build FTS5 query that searches each word independently
+		# Using NEAR operator to allow words to appear in any order with proximity
+		fts_conditions = []
+		for word in search_words:
+			if word:  # Skip empty words
+				# Search for the word as prefix in any field
+				fts_conditions.append(f'"{word}"*')
+		
+		if not fts_conditions:
+			return []
+			
+		# Join with NEAR operator to allow flexible ordering
+		# NEAR allows words to appear in any order within a reasonable distance
+		fts_query = ' NEAR('.join(fts_conditions) + ')' * (len(fts_conditions) - 1)
+		
 		search_sql = """
 		SELECT p.* 
 		FROM products p
@@ -110,14 +130,18 @@ class Database:
 		"""
 		try:
 			with self.connect() as conn:
-				# Prepare the search term for FTS5
-				# FTS5 uses a different syntax: we need to search each column separately
-				fts_query = f'"{search_term}"* OR {search_term}*'
 				cursor = conn.execute(search_sql, (fts_query,))
 				return cursor.fetchall()
 		except sqlite3.Error as e:
 			print(f"Error searching products: {e}")
-			return []
+			# Fallback to simple search if NEAR query fails
+			try:
+				# Try with simple AND search
+				simple_query = ' AND '.join([f'"{word}"*' for word in search_words if word])
+				cursor = conn.execute(search_sql, (simple_query,))
+				return cursor.fetchall()
+			except:
+				return []
 			
 	def get_all_products(self) -> list:
 		"""Get all products from the database"""

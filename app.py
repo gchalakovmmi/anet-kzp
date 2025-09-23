@@ -154,10 +154,8 @@ def search_products():
 	if not db:
 		return jsonify({'error': 'Database not ready'})
 	
-	if search_term:
-		products = db.search_products(search_term)
-	else:
-		products = db.get_all_products()
+	# Always use search function, even for empty terms (which will return empty)
+	products = db.search_products(search_term)
 	
 	# Convert rows to dictionaries for JSON serialization
 	product_list = []
@@ -175,7 +173,7 @@ def search_products():
 			'item_promotional_price': product['item_promotional_price']
 		})
 	
-	return jsonify({'products': product_list})
+	return jsonify({'products': product_list, 'search_term': search_term})
 
 @app.route('/api/update-category', methods=['POST'])
 def update_category():
@@ -198,6 +196,7 @@ def update_category():
 	return jsonify({
 		'success': success,
 		'category_name': category_name,
+		'category_code': category_code,
 		'updated_count': len(product_ids)
 	})
 
@@ -219,20 +218,19 @@ def export_csv():
 		'Търговски обект', 
 		'Наименование на продукта',
 		'Код на продукта',
-		'Категория',
+		'Код на категория',  # Changed from 'Категория' to 'Код на категория'
 		'Цена на дребно',
 		'Цена в промоция'
 	])
 	
-	# Write data
+	# Write data - using category CODE, not name
 	for product in products:
-		category_name = db.get_category_name(product['item_kzp_category_code']) if product['item_kzp_category_code'] else ""
 		writer.writerow([
 			product['settlement'],
 			product['market_name'],
 			product['item_name'],
 			product['item_code'],
-			category_name,
+			product['item_kzp_category_code'] or "",  # Use the code, not the name
 			str(product['item_retail_price']) if product['item_retail_price'] is not None else "",
 			str(product['item_promotional_price']) if product['item_promotional_price'] is not None else ""
 		])
