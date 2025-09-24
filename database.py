@@ -16,34 +16,14 @@ class Database:
 		if self.connection:
 			self.connection.close()
 			
-	def drop_tables(self):
-		"""Drop all tables if they exist"""
-		drop_tables_sql = [
-			"DROP TABLE IF EXISTS products",
-			"DROP TABLE IF EXISTS products_fts",
-			"DROP TABLE IF EXISTS categories"
-		]
+	def drop_fts_table(self):
+		"""Drop only the FTS table for rebuilding"""
+		drop_sql = "DROP TABLE IF EXISTS products_fts"
 		with self.connect() as conn:
-			for sql in drop_tables_sql:
-				conn.execute(sql)
+			conn.execute(drop_sql)
 			
-	def create_tables(self):
-		"""Create the products table with required structure and FTS5 index"""
-		# Create main products table
-		create_table_sql = """
-		CREATE TABLE products (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			settlement TEXT NOT NULL,
-			market_name TEXT NOT NULL,
-			item_name TEXT NOT NULL,
-			item_code TEXT NOT NULL,
-			item_kzp_category_code TEXT,
-			item_retail_price REAL,
-			item_promotional_price REAL
-		)
-		"""
-		
-		# Create FTS5 virtual table for fast searching
+	def create_fts_table(self):
+		"""Create FTS5 virtual table for fast searching"""
 		create_fts_sql = """
 		CREATE VIRTUAL TABLE products_fts USING fts5(
 			settlement, 
@@ -52,6 +32,27 @@ class Database:
 			item_code,
 			content='products',
 			content_rowid='id'
+		)
+		"""
+		with self.connect() as conn:
+			conn.execute(create_fts_sql)
+			# Populate FTS table with existing data
+			conn.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
+			
+	def create_tables_if_not_exist(self):
+		"""Create tables if they don't exist"""
+		# Create main products table
+		create_table_sql = """
+		CREATE TABLE IF NOT EXISTS products (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			settlement TEXT NOT NULL,
+			market_name TEXT NOT NULL,
+			item_name TEXT NOT NULL,
+			item_code TEXT NOT NULL,
+			item_kzp_category_code TEXT,
+			item_retail_price REAL,
+			item_promotional_price REAL,
+			UNIQUE(market_name, item_code)
 		)
 		"""
 		
@@ -65,83 +66,95 @@ class Database:
 		
 		with self.connect() as conn:
 			conn.execute(create_table_sql)
-			conn.execute(create_fts_sql)
 			conn.execute(create_categories_sql)
 			
-			# Populate FTS table with existing data (will be empty initially)
-			conn.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
+	def insert_products_batch(self, products_data: list) -> bool:
+		"""Insert products in batch for better performance"""
+		if not products_data:
+			return True
 			
-	def insert_product(self, product_data: tuple) -> bool:
-		"""Insert a single product into the database"""
 		insert_sql = """
-		INSERT INTO products 
+		INSERT OR REPLACE INTO products 
 		(settlement, market_name, item_name, item_code, item_kzp_category_code, item_retail_price, item_promotional_price)
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 		"""
 		try:
 			with self.connect() as conn:
-				cursor = conn.execute(insert_sql, product_data)
-				product_id = cursor.lastrowid
-				
-				# Also insert into FTS table
-				fts_sql = """
-				INSERT INTO products_fts (rowid, settlement, market_name, item_name, item_code)
-				VALUES (?, ?, ?, ?, ?)
-				"""
-				conn.execute(fts_sql, (product_id, product_data[0], product_data[1], product_data[2], product_data[3]))
-				
+				conn.executemany(insert_sql, products_data)
 				return True
 		except sqlite3.Error as e:
-			print(f"Error inserting product: {e}")
+			print(f"Error inserting products batch: {e}")
 			return False
 			
-	def search_products(self, search_term: str) -> list:
-		"""Search products using FTS5 across multiple fields with flexible matching"""
-		if not search_term.strip():
-			# Return empty list when no search term to show prompt message
-			return []
+	def remove_deleted_products(self, current_item_codes: set):
+		"""Remove categories from products that no longer exist in the current data"""
+		if not current_item_codes:
+			return
 			
-		# Split search term into individual words
-		search_words = search_term.strip().split()
-		if not search_words:
-			return []
-			
-		# Build FTS5 query that searches each word independently
-		# Using NEAR operator to allow words to appear in any order with proximity
-		fts_conditions = []
-		for word in search_words:
-			if word:  # Skip empty words
-				# Search for the word as prefix in any field
-				fts_conditions.append(f'"{word}"*')
+		# Create a placeholder string for the SQL query
+		placeholders = ','.join(['?'] * len(current_item_codes))
 		
-		if not fts_conditions:
-			return []
-			
-		# Join with NEAR operator to allow flexible ordering
-		# NEAR allows words to appear in any order within a reasonable distance
-		fts_query = ' NEAR('.join(fts_conditions) + ')' * (len(fts_conditions) - 1)
-		
-		search_sql = """
-		SELECT p.* 
-		FROM products p
-		JOIN products_fts fts ON p.id = fts.rowid
-		WHERE products_fts MATCH ?
-		ORDER BY rank, market_name, item_name
+		update_sql = f"""
+		UPDATE products 
+		SET item_kzp_category_code = NULL 
+		WHERE item_code NOT IN ({placeholders})
 		"""
+		
 		try:
 			with self.connect() as conn:
-				cursor = conn.execute(search_sql, (fts_query,))
+				conn.execute(update_sql, list(current_item_codes))
+		except sqlite3.Error as e:
+			print(f"Error removing categories from deleted products: {e}")
+			
+	def search_products(self, search_term: str, category_filter: str = None) -> list:
+		"""Search products using FTS5 across multiple fields with flexible matching"""
+		if not search_term.strip() and not category_filter:
+			# Return empty list when no search term or category filter
+			return []
+			
+		base_sql = """
+		SELECT p.* 
+		FROM products p
+		"""
+		
+		where_conditions = []
+		params = []
+		
+		if search_term.strip():
+			# Split search term into individual words
+			search_words = search_term.strip().split()
+			if search_words:
+				base_sql += " JOIN products_fts fts ON p.id = fts.rowid"
+				
+				# Build FTS5 query that searches each word independently
+				fts_conditions = []
+				for word in search_words:
+					if word:  # Skip empty words
+						# Search for the word as prefix in any field
+						fts_conditions.append(f'"{word}"*')
+				
+				if fts_conditions:
+					# Join with NEAR operator to allow flexible ordering
+					fts_query = ' NEAR('.join(fts_conditions) + ')' * (len(fts_conditions) - 1)
+					where_conditions.append("products_fts MATCH ?")
+					params.append(fts_query)
+		
+		if category_filter:
+			where_conditions.append("p.item_kzp_category_code = ?")
+			params.append(category_filter)
+			
+		if where_conditions:
+			base_sql += " WHERE " + " AND ".join(where_conditions)
+			
+		base_sql += " ORDER BY p.market_name, p.item_name"
+		
+		try:
+			with self.connect() as conn:
+				cursor = conn.execute(base_sql, params)
 				return cursor.fetchall()
 		except sqlite3.Error as e:
 			print(f"Error searching products: {e}")
-			# Fallback to simple search if NEAR query fails
-			try:
-				# Try with simple AND search
-				simple_query = ' AND '.join([f'"{word}"*' for word in search_words if word])
-				cursor = conn.execute(search_sql, (simple_query,))
-				return cursor.fetchall()
-			except:
-				return []
+			return []
 			
 	def get_all_products(self) -> list:
 		"""Get all products from the database"""
@@ -171,6 +184,25 @@ class Database:
 				return True
 		except sqlite3.Error as e:
 			print(f"Error updating product categories: {e}")
+			return False
+			
+	def remove_product_category(self, product_ids: list) -> bool:
+		"""Remove category from multiple products"""
+		if not product_ids:
+			return True
+			
+		placeholders = ','.join('?' * len(product_ids))
+		update_sql = f"""
+		UPDATE products 
+		SET item_kzp_category_code = NULL
+		WHERE id IN ({placeholders})
+		"""
+		try:
+			with self.connect() as conn:
+				conn.execute(update_sql, product_ids)
+				return True
+		except sqlite3.Error as e:
+			print(f"Error removing product categories: {e}")
 			return False
 			
 	def get_products_by_category(self, category_code: str = None) -> list:

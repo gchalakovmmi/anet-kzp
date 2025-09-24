@@ -1,5 +1,7 @@
-AnetMRA:
-  settlement: 07079 # Burgas. See: https://www.nsi.bg/nrnm/ekatte/index OR https://www.ekatte.com
-  name: "Анет4 Меден Рудник А"
-  address: "гр. Бургас ул. ХХХ №Х"
-  path_to_db: ./items.DB
+automatic_processing: 23:31 # Set to true to process automatically on startup, or a time like "02:00" for 2 AM
+markets:
+  - name: "AnetMRA"
+    settlement: "07079"
+    full_name: "Анет4 Меден Рудник А"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: "./items.DB"

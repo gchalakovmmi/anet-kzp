@@ -50,23 +50,23 @@
 			flex-direction: column;
 		}
 		
-		.loading-screen {
-			display: flex;
-			flex-direction: column;
-			justify-content: center;
-			align-items: center;
-			height: 100%;
-			text-align: center;
+		.processing-indicator {
+			display: none;
+			background-color: #fff3cd;
+			border: 1px solid #ffeaa7;
+			border-radius: 0.375rem;
+			padding: 0.75rem;
+			margin-bottom: 1rem;
 		}
 		
 		.progress {
-			width: 80%;
+			width: 100%;
 			height: 20px;
-			margin: 20px 0;
+			margin: 10px 0;
 		}
 		
 		.main-content {
-			display: none;
+			display: flex;
 			flex: 1;
 			flex-direction: column;
 			min-height: 0;
@@ -103,6 +103,17 @@
 			border-color: #7aa87a;
 		}
 		
+		.btn-warning {
+			background-color: #ffc107;
+			border-color: #ffc107;
+			color: var(--dark-color);
+		}
+		
+		.btn-warning:hover {
+			background-color: #e0a800;
+			border-color: #d39e00;
+		}
+		
 		.btn-export {
 			background-color: #6c757d;
 			border-color: #6c757d;
@@ -112,6 +123,17 @@
 		.btn-export:hover {
 			background-color: #5a6268;
 			border-color: #545b62;
+		}
+		
+		.btn-process {
+			background-color: #17a2b8;
+			border-color: #17a2b8;
+			color: white;
+		}
+		
+		.btn-process:hover {
+			background-color: #138496;
+			border-color: #117a8b;
 		}
 		
 		.table-hover tbody tr:hover {
@@ -189,6 +211,11 @@
 			border-radius: 0.25rem;
 			font-size: 0.875rem;
 		}
+		
+		.header-buttons {
+			display: flex;
+			gap: 0.5rem;
+		}
 	</style>
 </head>
 <body>
@@ -196,37 +223,32 @@
 		<div class="card shadow">
 			<div class="card-header d-flex justify-content-between align-items-center">
 				<h1 class="h3 mb-0"><i class="bi bi-cart-check"></i> Добавяне на продукти в категории</h1>
-				<button id="exportCsv" class="btn btn-export" disabled>
-					<i class="bi bi-download"></i> Експорт CSV
-				</button>
+				<div class="header-buttons">
+					<button id="processData" class="btn btn-process">
+						<i class="bi bi-arrow-repeat"></i> Обработка на данни
+					</button>
+					<button id="exportCsv" class="btn btn-export" disabled>
+						<i class="bi bi-download"></i> Експорт CSV
+					</button>
+				</div>
 			</div>
 			<div class="card-body">
-				<!-- Loading Screen -->
-				<div id="loadingScreen" class="loading-screen">
-					<div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status">
-						<span class="visually-hidden">Loading...</span>
-					</div>
-					<h3 class="mt-3" id="loadingTitle">Зареждане на данни...</h3>
-					<p id="loadingMessage">Моля, изчакайте докато се обработват данните от базата.</p>
-					
-					<div class="progress">
-						<div id="loadingProgress" class="progress-bar progress-bar-striped progress-bar-animated" 
-							 role="progressbar" style="width: 0%"></div>
-					</div>
-					
-					<div id="loadingDetails" class="mt-2">
-						<small>Обработва се: <span id="currentMarket">-</span></small><br>
-						<small>Прогрес: <span id="progressPercent">0</span>%</small>
-					</div>
-					
-					<div id="errorMessage" class="error-message mt-3" style="display: none;">
-						<h5><i class="bi bi-exclamation-triangle"></i> Грешка при обработка на данните</h5>
-						<p id="errorText"></p>
-						<button class="btn btn-warning mt-2" onclick="location.reload()">Опитайте отново</button>
+				<!-- Processing Indicator -->
+				<div id="processingIndicator" class="processing-indicator">
+					<div class="d-flex justify-content-between align-items-center">
+						<div>
+							<strong>Обработка на данни</strong>
+							<div id="processingMessage">Зареждане...</div>
+						</div>
+						<div class="progress" style="width: 300px; margin: 0 1rem;">
+							<div id="processingProgress" class="progress-bar progress-bar-striped progress-bar-animated" 
+								 role="progressbar" style="width: 0%"></div>
+						</div>
+						<div id="processingPercent">0%</div>
 					</div>
 				</div>
-				
-				<!-- Main Content (hidden until loading completes) -->
+
+				<!-- Main Content -->
 				<div id="mainContent" class="main-content">
 					<!-- Category selection -->
 					<div class="row mb-3">
@@ -329,6 +351,9 @@
 								<button class="btn btn-success" id="addToCategory">
 									<i class="bi bi-plus-circle"></i> Добави към категория
 								</button>
+								<button class="btn btn-warning" id="removeFromCategory">
+									<i class="bi bi-dash-circle"></i> Премахни от категория
+								</button>
 								<button class="btn btn-outline-secondary" id="clearSelection">
 									Изчисти избора
 								</button>
@@ -384,43 +409,45 @@
 
 	<script>
 		let currentProducts = [];
+		let currentCategoryFilter = '';
 		
 		// Check processing status periodically
 		function checkProcessingStatus() {
 			fetch('/api/processing-status')
 				.then(response => response.json())
 				.then(data => {
-					// Update loading screen
-					document.getElementById('loadingProgress').style.width = data.progress + '%';
-					document.getElementById('progressPercent').textContent = data.progress;
-					document.getElementById('currentMarket').textContent = data.current_market || '-';
-					document.getElementById('loadingMessage').textContent = data.message;
+					// Update processing indicator
+					const indicator = document.getElementById('processingIndicator');
+					const progressBar = document.getElementById('processingProgress');
+					const progressPercent = document.getElementById('processingPercent');
+					const processingMessage = document.getElementById('processingMessage');
+					
+					if (data.is_processing) {
+						indicator.style.display = 'block';
+						progressBar.style.width = data.progress + '%';
+						progressPercent.textContent = data.progress + '%';
+						processingMessage.textContent = data.message;
+					} else {
+						indicator.style.display = 'none';
+						
+						// If processing just completed, reload the products
+						if (data.progress === 100) {
+							loadProducts();
+						}
+					}
 					
 					// Handle errors
 					if (data.error) {
-						document.getElementById('loadingTitle').textContent = 'Грешка при обработка';
-						document.getElementById('errorText').textContent = data.error;
-						document.getElementById('errorMessage').style.display = 'block';
-						return;
+						alert('Грешка при обработка: ' + data.error);
 					}
 					
-					// Check if processing is complete
-					if (!data.is_processing) {
-						// Hide loading screen and show main content
-						document.getElementById('loadingScreen').style.display = 'none';
-						document.getElementById('mainContent').style.display = 'flex';
-						
-						// Show search prompt initially
-						showSearchPrompt();
-						initializeApplication();
-					} else {
-						// Continue checking status
+					// Continue checking status if still processing
+					if (data.is_processing) {
 						setTimeout(checkProcessingStatus, 1000);
 					}
 				})
 				.catch(error => {
 					console.error('Error checking status:', error);
-					document.getElementById('loadingMessage').textContent = 'Грешка при свързване със сървъра. Опитване отново...';
 					setTimeout(checkProcessingStatus, 3000);
 				});
 		}
@@ -439,11 +466,19 @@
 		}
 		
 		// Load products from the server
-		function loadProducts(searchTerm = '') {
-			let url = '/api/search';
+		function loadProducts(searchTerm = '', categoryFilter = '') {
+			let url = '/api/search?';
+			const params = [];
+			
 			if (searchTerm) {
-				url += '?q=' + encodeURIComponent(searchTerm);
+				params.push('q=' + encodeURIComponent(searchTerm));
 			}
+			
+			if (categoryFilter) {
+				params.push('category=' + encodeURIComponent(categoryFilter));
+			}
+			
+			url += params.join('&');
 			
 			fetch(url)
 				.then(response => response.json())
@@ -454,7 +489,8 @@
 					}
 					
 					currentProducts = data.products || [];
-					displayProducts(currentProducts, data.search_term);
+					currentCategoryFilter = data.category_filter || '';
+					displayProducts(currentProducts, data.search_term, data.category_filter);
 				})
 				.catch(error => {
 					console.error('Error loading products:', error);
@@ -462,7 +498,7 @@
 		}
 		
 		// Display products in the table
-		function displayProducts(products, searchTerm) {
+		function displayProducts(products, searchTerm, categoryFilter) {
 			const tbody = document.getElementById('productsTableBody');
 			const noResults = document.getElementById('noResults');
 			const searchPrompt = document.getElementById('searchPrompt');
@@ -475,8 +511,8 @@
 			if (products.length === 0) {
 				tbody.innerHTML = '';
 				
-				if (!searchTerm || searchTerm.trim() === '') {
-					// Show search prompt when no search term
+				if (!searchTerm && !categoryFilter) {
+					// Show search prompt when no search term or category filter
 					searchPrompt.style.display = 'block';
 				} else {
 					// Show no results when search term returns nothing
@@ -522,8 +558,11 @@
 			updateSelectedCount();
 		}
 		
-		// Initialize the main application after loading is complete
+		// Initialize the main application
 		function initializeApplication() {
+			// Show search prompt initially
+			showSearchPrompt();
+			
 			// Select all functionality
 			document.getElementById('selectAll').addEventListener('change', function() {
 				const checkboxes = document.querySelectorAll('.item-checkbox');
@@ -568,7 +607,8 @@
 					},
 					body: JSON.stringify({
 						product_ids: selectedProductIds,
-						category_code: selectedCategory
+						category_code: selectedCategory,
+						action: 'add'
 					})
 				})
 				.then(response => response.json())
@@ -602,11 +642,85 @@
 				});
 			});
 
+			// Remove from category button
+			document.getElementById('removeFromCategory').addEventListener('click', function() {
+				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
+				const selectedProductIds = Array.from(selectedCheckboxes).map(cb => cb.value);
+				
+				if (selectedProductIds.length === 0) {
+					alert('Моля, изберете поне един продукт преди да го премахнете от категория.');
+					return;
+				}
+				
+				if (!confirm(`Сигурни ли сте, че искате да премахнете ${selectedProductIds.length} продукта от категорията?`)) {
+					return;
+				}
+				
+				// Send request to remove categories
+				fetch('/api/update-category', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					},
+					body: JSON.stringify({
+						product_ids: selectedProductIds,
+						action: 'remove'
+					})
+				})
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						// Update the UI to remove the categories
+						selectedProductIds.forEach(productId => {
+							const row = document.querySelector(`tr[data-product-id="${productId}"]`);
+							if (row) {
+								row.classList.remove('categorized-row');
+								const categoryCell = row.cells[5];
+								categoryCell.innerHTML = '';
+							}
+						});
+						
+						alert(`Премахнати ${data.updated_count} продукта от категориите.`);
+						
+						// Clear selection
+						document.getElementById('selectAll').checked = false;
+						selectedCheckboxes.forEach(checkbox => {
+							checkbox.checked = false;
+						});
+						updateSelectedCount();
+					} else {
+						alert('Грешка при премахване от категория: ' + data.error);
+					}
+				})
+				.catch(error => {
+					console.error('Error removing category:', error);
+					alert('Грешка при премахване от категория.');
+				});
+			});
+
+			// Category selection change
+			document.getElementById('categorySelect').addEventListener('change', function() {
+				const selectedCategory = this.value;
+				// Clear search when category is selected
+				document.getElementById('searchInput').value = '';
+				
+				if (selectedCategory) {
+					// Show products in the selected category
+					loadProducts('', selectedCategory);
+				} else {
+					// Show search prompt when no category is selected
+					showSearchPrompt();
+				}
+			});
+
 			// Search functionality
 			document.getElementById('searchButton').addEventListener('click', function() {
 				const searchTerm = document.getElementById('searchInput').value.trim();
+				// Clear category filter when searching
+				document.getElementById('categorySelect').value = '';
+				
 				if (searchTerm) {
-					loadProducts(searchTerm);
+					loadProducts(searchTerm, '');
 				} else {
 					showSearchPrompt();
 				}
@@ -624,6 +738,33 @@
 				window.open('/api/export-csv', '_blank');
 			});
 
+			// Process data functionality
+			document.getElementById('processData').addEventListener('click', function() {
+				if (!confirm('Сигурни ли сте, че искате да стартирате обработката на данни? Това може да отнеме известно време.')) {
+					return;
+				}
+				
+				fetch('/api/start-processing', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json',
+					}
+				})
+				.then(response => response.json())
+				.then(data => {
+					if (data.success) {
+						// Start checking processing status
+						checkProcessingStatus();
+					} else {
+						alert('Грешка при стартиране на обработката: ' + data.error);
+					}
+				})
+				.catch(error => {
+					console.error('Error starting processing:', error);
+					alert('Грешка при стартиране на обработката.');
+				});
+			});
+
 			// Update selected count when any checkbox changes
 			function updateSelectedCount() {
 				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
@@ -637,6 +778,8 @@
 		
 		// Start checking processing status when page loads
 		document.addEventListener('DOMContentLoaded', function() {
+			initializeApplication();
+			// Check if processing is already running
 			checkProcessingStatus();
 		});
 	</script>

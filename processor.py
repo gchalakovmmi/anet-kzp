@@ -5,11 +5,12 @@ import time
 import os
 
 class DataProcessor:
-	def __init__(self, config_details: dict, db: Database, status_dict: dict):
+	def __init__(self, config_details: list, db: Database, status_dict: dict):
 		self.config_details = config_details
 		self.db = db
 		self.status = status_dict
 		self.log_file = './skipped_rows.log'
+		self.batch_size = 1000  # Process in batches for better performance
 		
 		# Clear the log file at startup
 		with open(self.log_file, 'w', encoding='utf-8') as f:
@@ -25,12 +26,12 @@ class DataProcessor:
 	def _count_total_rows(self):
 		"""Count total rows across all markets for progress tracking"""
 		total_rows = 0
-		for market_name, market_info in self.config_details.items():
+		for market_info in self.config_details:
 			try:
 				table = Table(market_info['path_to_db'], encoding='windows-1251')
 				total_rows += sum(1 for _ in table)
 			except Exception as e:
-				print(f"Warning: Could not count rows for {market_name}: {e}")
+				print(f"Warning: Could not count rows for {market_info['name']}: {e}")
 		return total_rows
 		
 	def _log_skipped_row(self, market_name: str, row_num: int, product_data: tuple, reason: str):
@@ -45,10 +46,11 @@ class DataProcessor:
 			f.write("-" * 40 + "\n")
 		
 	def paradox_to_sqlite(self):
-		"""Convert Paradox database data to SQLite with required columns"""
+		"""Convert Paradox database data to SQLite with batch operations"""
 		total_rows = 0
 		skipped_rows = 0
 		market_count = 0
+		current_item_codes = set()  # Track current items to remove categories from deleted items
 		
 		# Count total rows for accurate progress tracking
 		print("Counting total rows across all markets...")
@@ -62,8 +64,10 @@ class DataProcessor:
 		processed_rows = 0
 		last_percent = -1
 		
-		for market_name, market_info in self.config_details.items():
+		# Process each market
+		for market_info in self.config_details:
 			market_count += 1
+			market_name = market_info['name']
 			
 			self._update_status(market_name, 0, f"Starting market {market_count}/{len(self.config_details)}: {market_name}")
 			print(f"\nProcessing market {market_count}/{len(self.config_details)}: {market_name}")
@@ -78,8 +82,12 @@ class DataProcessor:
 				
 				print(f"Processing {market_rows} rows...")
 				
-				# Process each row
-				for row_num, row in enumerate(table, 1):
+				# Process rows in batches
+				batch_data = []
+				row_num = 0
+				
+				for row in table:
+					row_num += 1
 					processed_rows += 1
 					progress = int((processed_rows / total_all_rows) * 100)
 					
@@ -119,7 +127,7 @@ class DataProcessor:
 						# Prepare product data for logging
 						product_data = (
 							market_info['settlement'],
-							f"{market_info['name']} {market_info['address']}",
+							f"{market_info['full_name']} {market_info['address']}",
 							str(row.Item) if hasattr(row, 'Item') and row.Item is not None else None,
 							str(row.id) if hasattr(row, 'id') and row.id is not None else None,
 							None,
@@ -127,7 +135,6 @@ class DataProcessor:
 							None
 						)
 						self._log_skipped_row(market_name, row_num, product_data, f"Missing attributes: {missing_attributes}")
-						print(f"\nWarning: Row {row_num} in market {market_name} missing attributes: {missing_attributes}. Skipping.")
 						skipped_rows += 1
 						continue
 					
@@ -139,7 +146,7 @@ class DataProcessor:
 						
 						product_data = (
 							market_info['settlement'],
-							f"{market_info['name']} {market_info['address']}",
+							f"{market_info['full_name']} {market_info['address']}",
 							item_name,
 							item_code,
 							None,  # item_kzp_category_code (will be set via UI)
@@ -147,19 +154,22 @@ class DataProcessor:
 							None  # item_promotional_price
 						)
 						
-						# Insert into SQLite database
-						success = self.db.insert_product(product_data)
-						if not success:
-							self._log_skipped_row(market_name, row_num, product_data, "Database insertion failed")
-							print(f"\nWarning: Failed to insert product at row {row_num}: {product_data}")
-							skipped_rows += 1
-						else:
-							total_rows += 1
+						batch_data.append(product_data)
+						current_item_codes.add(item_code)  # Track current item codes
+						
+						# Insert batch when it reaches the batch size
+						if len(batch_data) >= self.batch_size:
+							success = self.db.insert_products_batch(batch_data)
+							if not success:
+								print(f"\nWarning: Failed to insert batch of {len(batch_data)} products")
+							else:
+								total_rows += len(batch_data)
+							batch_data = []
 							
 					except (ValueError, TypeError) as e:
 						product_data = (
 							market_info['settlement'],
-							f"{market_info['name']} {market_info['address']}",
+							f"{market_info['full_name']} {market_info['address']}",
 							str(row.Item) if hasattr(row, 'Item') else None,
 							str(row.id) if hasattr(row, 'id') else None,
 							None,
@@ -167,9 +177,16 @@ class DataProcessor:
 							None
 						)
 						self._log_skipped_row(market_name, row_num, product_data, f"Data format error: {e}")
-						print(f"\nWarning: Invalid data format at row {row_num} in market {market_name}: {e}. Skipping.")
 						skipped_rows += 1
 						continue
+				
+				# Insert any remaining rows in the batch
+				if batch_data:
+					success = self.db.insert_products_batch(batch_data)
+					if not success:
+						print(f"\nWarning: Failed to insert final batch of {len(batch_data)} products")
+					else:
+						total_rows += len(batch_data)
 				
 				# Clear the progress bar and print completion message
 				sys.stdout.write('\r\x1b[K')  # Clear the entire line
@@ -185,6 +202,15 @@ class DataProcessor:
 				# Continue with next market instead of stopping
 				continue
 				
+		# Remove categories from products that no longer exist
+		print("\nCleaning up categories for deleted products...")
+		self.db.remove_deleted_products(current_item_codes)
+		
+		# Rebuild FTS index
+		print("Rebuilding search index...")
+		self.db.drop_fts_table()
+		self.db.create_fts_table()
+		
 		# Final status update
 		sys.stdout.write('\r\x1b[K')  # Clear the entire line
 		self._update_status("Complete", 100, f"Processing completed: {total_rows} rows inserted, {skipped_rows} rows skipped")

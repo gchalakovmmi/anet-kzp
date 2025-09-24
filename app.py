@@ -16,12 +16,13 @@ processing_status = {
 	'progress': 0,
 	'total_markets': 0,
 	'processed_markets': 0,
-	'message': 'Initializing...',
+	'message': 'Ready',
 	'error': None
 }
 
 # Global database instance
 db = None
+processor = None
 
 # Category mapping (from the HTML select options)
 CATEGORIES = {
@@ -99,32 +100,30 @@ CATEGORIES = {
 	'85': '85. Тоалетна хартия 8 ролки'
 }
 
-def initialize_app():
-	"""Initialize the application with database setup and data processing"""
-	global processing_status, db
+def initialize_database():
+	"""Initialize database and category mapping"""
+	global db
+	db = Database('./products.sqlite')
+	db.create_tables_if_not_exist()
+	db.save_category_mapping(CATEGORIES)
+
+def process_data():
+	"""Process data in background thread"""
+	global processing_status, db, processor
 	
 	processing_status['is_processing'] = True
-	processing_status['message'] = 'Starting database setup...'
+	processing_status['message'] = 'Starting data processing...'
 	
 	try:
 		config = Config('./config.yaml')
-		db = Database('./products.sqlite')
+		markets = config.get_markets()
 		
 		# Get total number of markets for progress tracking
-		total_markets = len(config.get_details())
+		total_markets = len(markets)
 		processing_status['total_markets'] = total_markets
 		
-		# Drop and recreate tables for clean start
-		processing_status['message'] = 'Setting up database tables...'
-		db.drop_tables()
-		db.create_tables()
-		
-		# Save category mapping to database
-		db.save_category_mapping(CATEGORIES)
-		
 		# Process Paradox data
-		processing_status['message'] = 'Starting data processing...'
-		processor = DataProcessor(config.get_details(), db, processing_status)
+		processor = DataProcessor(markets, db, processing_status)
 		processor.paradox_to_sqlite()
 		
 		processing_status['is_processing'] = False
@@ -135,10 +134,23 @@ def initialize_app():
 		processing_status['error'] = str(e)
 		processing_status['message'] = f'Error during processing: {e}'
 
-# Start processing in a background thread
-processing_thread = threading.Thread(target=initialize_app)
-processing_thread.daemon = True
-processing_thread.start()
+def check_automatic_processing():
+	"""Check if we should process automatically based on config"""
+	try:
+		config = Config('./config.yaml')
+		if config.should_process_automatically():
+			print("Automatic processing triggered by schedule")
+			processing_thread = threading.Thread(target=process_data)
+			processing_thread.daemon = True
+			processing_thread.start()
+	except Exception as e:
+		print(f"Error checking automatic processing: {e}")
+
+# Initialize database on startup
+initialize_database()
+
+# Check for automatic processing on startup
+check_automatic_processing()
 
 @app.route('/')
 def categories():
@@ -148,14 +160,28 @@ def categories():
 def get_processing_status():
 	return jsonify(processing_status)
 
+@app.route('/api/start-processing', methods=['POST'])
+def start_processing():
+	"""Start data processing manually"""
+	if processing_status['is_processing']:
+		return jsonify({'success': False, 'error': 'Processing already in progress'})
+	
+	processing_thread = threading.Thread(target=process_data)
+	processing_thread.daemon = True
+	processing_thread.start()
+	
+	return jsonify({'success': True, 'message': 'Processing started'})
+
 @app.route('/api/search')
 def search_products():
 	search_term = request.args.get('q', '')
+	category_filter = request.args.get('category', '')
+	
 	if not db:
 		return jsonify({'error': 'Database not ready'})
 	
-	# Always use search function, even for empty terms (which will return empty)
-	products = db.search_products(search_term)
+	# Always use search function
+	products = db.search_products(search_term, category_filter)
 	
 	# Convert rows to dictionaries for JSON serialization
 	product_list = []
@@ -173,7 +199,7 @@ def search_products():
 			'item_promotional_price': product['item_promotional_price']
 		})
 	
-	return jsonify({'products': product_list, 'search_term': search_term})
+	return jsonify({'products': product_list, 'search_term': search_term, 'category_filter': category_filter})
 
 @app.route('/api/update-category', methods=['POST'])
 def update_category():
@@ -183,20 +209,26 @@ def update_category():
 	data = request.json
 	product_ids = data.get('product_ids', [])
 	category_code = data.get('category_code', '')
+	action = data.get('action', 'add')  # 'add' or 'remove'
 	
 	if not product_ids:
 		return jsonify({'success': False, 'error': 'No products selected'})
 	
-	if not category_code:
+	if action == 'add' and not category_code:
 		return jsonify({'success': False, 'error': 'No category selected'})
 	
-	success = db.update_product_category(product_ids, category_code)
-	category_name = CATEGORIES.get(category_code, '')
+	if action == 'add':
+		success = db.update_product_category(product_ids, category_code)
+		category_name = CATEGORIES.get(category_code, '')
+	else:  # remove
+		success = db.remove_product_category(product_ids)
+		category_name = ''
 	
 	return jsonify({
 		'success': success,
 		'category_name': category_name,
 		'category_code': category_code,
+		'action': action,
 		'updated_count': len(product_ids)
 	})
 
@@ -218,7 +250,7 @@ def export_csv():
 		'Търговски обект', 
 		'Наименование на продукта',
 		'Код на продукта',
-		'Код на категория',  # Changed from 'Категория' to 'Код на категория'
+		'Код на категория',
 		'Цена на дребно',
 		'Цена в промоция'
 	])
@@ -230,7 +262,7 @@ def export_csv():
 			product['market_name'],
 			product['item_name'],
 			product['item_code'],
-			product['item_kzp_category_code'] or "",  # Use the code, not the name
+			product['item_kzp_category_code'] or "",
 			str(product['item_retail_price']) if product['item_retail_price'] is not None else "",
 			str(product['item_promotional_price']) if product['item_promotional_price'] is not None else ""
 		])
