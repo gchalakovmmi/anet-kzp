@@ -11,6 +11,9 @@ pkgs.mkShell {
 			pyyaml
 			pypxlib
 			flask
+			flaskwebgui
+			schedule
+			waitress
 		])
 	)];
 }

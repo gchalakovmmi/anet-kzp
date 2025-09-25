@@ -3,6 +3,7 @@ import threading
 import time
 import csv
 import io
+import schedule
 from config import Config
 from database import Database
 from processor import DataProcessor
@@ -109,10 +110,11 @@ def initialize_database():
 
 def process_data():
 	"""Process data in background thread"""
-	global processing_status, db, processor
-	
+	global processing_status
 	processing_status['is_processing'] = True
 	processing_status['message'] = 'Starting data processing...'
+	processing_status['error'] = None
+	processing_status['progress'] = 0
 	
 	try:
 		config = Config('./config.yaml')
@@ -128,29 +130,55 @@ def process_data():
 		
 		processing_status['is_processing'] = False
 		processing_status['message'] = 'Data processing completed successfully!'
+		print("✅ Data processing completed successfully!")
 		
 	except Exception as e:
 		processing_status['is_processing'] = False
 		processing_status['error'] = str(e)
 		processing_status['message'] = f'Error during processing: {e}'
+		print(f"❌ Error during processing: {e}")
 
-def check_automatic_processing():
-	"""Check if we should process automatically based on config"""
+def automatic_processing_job():
+	"""Job to check if automatic processing should run"""
+	print(f"🕒 Checking automatic processing schedule at {time.strftime('%H:%M:%S')}")
 	try:
 		config = Config('./config.yaml')
 		if config.should_process_automatically():
-			print("Automatic processing triggered by schedule")
-			processing_thread = threading.Thread(target=process_data)
-			processing_thread.daemon = True
-			processing_thread.start()
+			print("🔄 Automatic processing triggered by schedule")
+			if not processing_status['is_processing']:
+				process_data()
+			else:
+				print("⏸️ Processing already in progress, skipping")
+		else:
+			auto_setting = config.get_automatic_processing()
+			if isinstance(auto_setting, str):
+				print(f"⏰ Next automatic processing scheduled for: {auto_setting}")
 	except Exception as e:
-		print(f"Error checking automatic processing: {e}")
+		print(f"❌ Error in automatic processing check: {e}")
+
+def start_scheduler():
+	"""Start the automatic processing scheduler"""
+	# Schedule the job to run every minute
+	schedule.every(1).minutes.do(automatic_processing_job)
+	
+	# Run initial check
+	automatic_processing_job()
+	
+	def run_scheduler():
+		while True:
+			schedule.run_pending()
+			time.sleep(30)  # Check every 30 seconds
+	
+	# Start scheduler in background thread
+	scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
+	scheduler_thread.start()
+	print("📅 Automatic processing scheduler started")
 
 # Initialize database on startup
 initialize_database()
 
-# Check for automatic processing on startup
-check_automatic_processing()
+# Start automatic processing scheduler
+start_scheduler()
 
 @app.route('/')
 def categories():
@@ -275,4 +303,6 @@ def export_csv():
 	return response
 
 if __name__ == '__main__':
+	print("🚀 Application started successfully!")
+	print("📅 Automatic processing scheduler is running...")
 	app.run(debug=True, host='0.0.0.0', port=5000)

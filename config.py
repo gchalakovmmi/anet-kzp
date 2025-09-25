@@ -34,17 +34,16 @@ class Config:
 		elif auto_setting is True:
 			return True
 		elif isinstance(auto_setting, str):
-			# Parse time string like "02:00"
+			# Parse time string like "23:31"
 			time_match = re.match(r'(\d{1,2}):(\d{2})', auto_setting)
 			if time_match:
 				target_hour = int(time_match.group(1))
 				target_minute = int(time_match.group(2))
-				current_time = datetime.now().time()
-				target_time = time(target_hour, target_minute)
+				current_time = datetime.now()
+				target_time = current_time.replace(hour=target_hour, minute=target_minute, second=0, microsecond=0)
 				
-				# Check if current time is after target time (within 1 hour window)
-				if current_time >= target_time:
-					delta = datetime.combine(datetime.today(), current_time) - datetime.combine(datetime.today(), target_time)
-					return delta.total_seconds() <= 3600  # 1 hour window
-					
+				# Check if current time is within 2 minutes of target time
+				time_diff = abs((current_time - target_time).total_seconds())
+				return time_diff <= 120  # 2 minute window
+				
 		return False

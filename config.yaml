@@ -1,4 +1,4 @@
-automatic_processing: 23:31 # Set to true to process automatically on startup, or a time like "02:00" for 2 AM
+automatic_processing: "12:30"  # Set to time like "23:45" or false to disable
 markets:
   - name: "AnetMRA"
     settlement: "07079"
