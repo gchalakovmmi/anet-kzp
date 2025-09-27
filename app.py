@@ -3,7 +3,6 @@ import threading
 import time
 import csv
 import io
-import schedule
 from config import Config
 from database import Database
 from processor import DataProcessor
@@ -23,7 +22,6 @@ processing_status = {
 
 # Global database instance
 db = None
-processor = None
 
 # Category mapping (from the HTML select options)
 CATEGORIES = {
@@ -109,7 +107,7 @@ def initialize_database():
 	db.save_category_mapping(CATEGORIES)
 
 def process_data():
-	"""Process data in background thread"""
+	"""Process data in background thread - manual trigger only"""
 	global processing_status
 	processing_status['is_processing'] = True
 	processing_status['message'] = 'Starting data processing...'
@@ -138,47 +136,13 @@ def process_data():
 		processing_status['message'] = f'Error during processing: {e}'
 		print(f"❌ Error during processing: {e}")
 
-def automatic_processing_job():
-	"""Job to check if automatic processing should run"""
-	print(f"🕒 Checking automatic processing schedule at {time.strftime('%H:%M:%S')}")
-	try:
-		config = Config('./config.yaml')
-		if config.should_process_automatically():
-			print("🔄 Automatic processing triggered by schedule")
-			if not processing_status['is_processing']:
-				process_data()
-			else:
-				print("⏸️ Processing already in progress, skipping")
-		else:
-			auto_setting = config.get_automatic_processing()
-			if isinstance(auto_setting, str):
-				print(f"⏰ Next automatic processing scheduled for: {auto_setting}")
-	except Exception as e:
-		print(f"❌ Error in automatic processing check: {e}")
-
-def start_scheduler():
-	"""Start the automatic processing scheduler"""
-	# Schedule the job to run every minute
-	schedule.every(1).minutes.do(automatic_processing_job)
-	
-	# Run initial check
-	automatic_processing_job()
-	
-	def run_scheduler():
-		while True:
-			schedule.run_pending()
-			time.sleep(30)  # Check every 30 seconds
-	
-	# Start scheduler in background thread
-	scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-	scheduler_thread.start()
-	print("📅 Automatic processing scheduler started")
-
 # Initialize database on startup
 initialize_database()
 
-# Start automatic processing scheduler
-start_scheduler()
+print("🚀 Web application started successfully!")
+print("🌐 Application available at http://127.0.0.1:5000")
+print("💡 Automatic processing is handled by background_service.py")
+print("🖥️  Desktop app can run simultaneously on the same port")
 
 @app.route('/')
 def categories():
@@ -303,6 +267,4 @@ def export_csv():
 	return response
 
 if __name__ == '__main__':
-	print("🚀 Application started successfully!")
-	print("📅 Automatic processing scheduler is running...")
 	app.run(debug=True, host='0.0.0.0', port=5000)

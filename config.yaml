@@ -1,7 +1,12 @@
-automatic_processing: "12:30"  # Set to time like "23:45" or false to disable
+automatic_processing: "23:45"  # Set to time like "23:45" or false to disable
 markets:
   - name: "AnetMRA"
     settlement: "07079"
     full_name: "Анет4 Меден Рудник А"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: "./items.DB"
+  - name: "AnetMRB"
+    settlement: "07079"
+    full_name: "Анет4 Меден Рудник Б"
     address: "гр. Бургас ул. ХХХ №Х"
     path_to_db: "./items.DB"

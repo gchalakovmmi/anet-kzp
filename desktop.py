@@ -13,7 +13,7 @@ def main():
 	config = {
 		'app': app,
 		'server': "flask",
-		'port': 5000,
+		'port': 5000,  # Same port as web interface
 		'width': 1400,
 		'height': 900,
 		'fullscreen': False,
@@ -22,6 +22,8 @@ def main():
 	
 	print("🚀 Starting desktop application...")
 	print("📊 Application will open in a desktop window")
+	print("🌐 Web interface remains available at http://127.0.0.1:5000")
+	print("💡 Automatic processing is handled by background_service.py")
 	print("⏳ Please wait while the application loads...")
 	
 	# Create and run the desktop UI
