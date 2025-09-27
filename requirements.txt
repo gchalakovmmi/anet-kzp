@@ -1,3 +1,7 @@
 PyYAML
 pypxlib
 Flask
+schedule
+flaskwebgui
+waitress
+psutil
