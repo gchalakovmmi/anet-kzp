@@ -61,12 +61,41 @@ class Database:
 			name TEXT NOT NULL
 		)
 		"""
+
 		with self.connect() as conn:
 			conn.execute(create_table_sql)
 			conn.execute(create_fts_sql)
 			conn.execute(create_categories_sql)
 			# Populate FTS table with existing data (will be empty initially)
 			conn.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
+
+	def get_current_categories_by_code(self) -> dict:
+		"""
+		Fetches the (item_code, market_name) and item_kzp_category_code from the current database.
+		Used to preserve category assignments before dropping and re-creating tables.
+		Returns a dictionary mapping (item_code, market_name) tuple to its category_code.
+		"""
+		select_sql = """
+		SELECT item_code, market_name, item_kzp_category_code 
+		FROM products 
+		WHERE item_kzp_category_code IS NOT NULL
+		"""
+		category_map = {}
+		try:
+			with self.connect() as conn:
+				cursor = conn.execute(select_sql)
+				rows = cursor.fetchall()
+				for row in rows:
+					key = (row['item_code'], row['market_name']) # Use tuple as key
+					# Map (item_code, market_name) to its category_code, only if category_code exists
+					if row['item_kzp_category_code']: # Ensure category_code is not None/empty string
+						category_map[key] = row['item_kzp_category_code']
+		except sqlite3.Error as e:
+			logging.error(f"Error fetching current categories by code and market: {e}")
+			# Depending on your error handling strategy, you might want to raise an exception here
+			# or return an empty map, potentially losing categories.
+			# For now, returning the potentially incomplete map seems safer if an error occurs mid-query.
+		return category_map
 
 	def insert_product(self, product_data: tuple) -> bool:
 		"""Insert a single product into the database"""
@@ -118,6 +147,33 @@ class Database:
 			# Raise the exception to signal failure to the caller
 			raise e # Re-raise the exception to halt processing
 
+	def update_categories_batch(self, category_assignments: list) -> bool:
+		"""
+		Updates the item_kzp_category_code for multiple products based on their item_code and market_name.
+		:param category_assignments: A list of tuples (category_code, item_code, market_name).
+		:return: True if successful, False otherwise.
+		"""
+		if not category_assignments:
+			logging.info("No category assignments to update.")
+			return True # Nothing to update, consider it successful
+
+		update_sql = """
+		UPDATE products
+		SET item_kzp_category_code = ?
+		WHERE item_code = ? AND market_name = ?
+		"""
+		try:
+			with self.connect() as conn:
+				conn.executemany(update_sql, category_assignments)
+				conn.commit()
+				logging.info(f"Successfully updated categories for {len(category_assignments)} products.")
+				return True
+		except sqlite3.Error as e:
+			logging.error(f"Error updating categories batch for {len(category_assignments)} products: {e}")
+			print(f"Error updating categories batch: {e}")
+			# Raise the exception to signal failure to the caller
+			raise e # Re-raise the exception to halt processing if categories fail to update
+
 	def rebuild_fts_index(self):
 		"""Rebuild the FTS5 index after bulk inserts."""
 		rebuild_sql = "INSERT INTO products_fts(products_fts) VALUES('rebuild')"
@@ -131,16 +187,17 @@ class Database:
 			print(f"Error rebuilding FTS5 index: {e}")
 			return False
 
-
 	def search_products(self, search_term: str) -> list:
 		"""Search products using FTS5 across multiple fields with flexible matching"""
 		if not search_term.strip():
 			# Return empty list when no search term to show prompt message
 			return []
+
 		# Split search term into individual words
 		search_words = search_term.strip().split()
 		if not search_words:
 			return []
+
 		# Build FTS5 query that searches each word independently
 		# Using NEAR operator to allow words to appear in any order with proximity
 		fts_conditions = []
@@ -148,11 +205,14 @@ class Database:
 			if word:  # Skip empty words
 				# Search for the word as prefix in any field
 				fts_conditions.append(f'"{word}"*')
+
 		if not fts_conditions:
 			return []
+
 		# Join with NEAR operator to allow flexible ordering
 		# NEAR allows words to appear in any order within a reasonable distance
 		fts_query = ' NEAR('.join(fts_conditions) + ')' * (len(fts_conditions) - 1)
+
 		search_sql = """
 		SELECT p.*
 		FROM products p
@@ -190,6 +250,7 @@ class Database:
 		"""Update the category for multiple products"""
 		if not product_ids:
 			return True
+
 		placeholders = ','.join('?' * len(product_ids))
 		update_sql = f"""
 		UPDATE products

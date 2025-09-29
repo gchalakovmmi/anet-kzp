@@ -1,3 +1,4 @@
+import logging
 from flask import Flask, render_template, jsonify, request, Response
 import threading
 import time
@@ -102,34 +103,38 @@ CATEGORIES = {
 def initialize_app():
 	"""Initialize the application with database setup and data processing"""
 	global processing_status, db
-	
 	processing_status['is_processing'] = True
 	processing_status['message'] = 'Starting database setup...'
-	
 	try:
 		config = Config('./config.yaml')
 		db = Database('./products.sqlite')
-		
+
 		# Get total number of markets for progress tracking
 		total_markets = len(config.get_details())
 		processing_status['total_markets'] = total_markets
-		
+
+		# --- SAVE CURRENT CATEGORIES BEFORE DROPPING TABLES ---
+		processing_status['message'] = 'Saving current category assignments...'
+		current_categories = db.get_current_categories_by_code()
+		logging.info(f"Saved {len(current_categories)} category assignments.")
+
 		# Drop and recreate tables for clean start
 		processing_status['message'] = 'Setting up database tables...'
 		db.drop_tables()
 		db.create_tables()
-		
+
 		# Save category mapping to database
 		db.save_category_mapping(CATEGORIES)
-		
-		# Process Paradox data
+
+		# Process Paradox data, passing the saved categories
 		processing_status['message'] = 'Starting data processing...'
-		processor = DataProcessor(config.get_details(), db, processing_status)
+		# Pass the saved current_categories dictionary to the processor
+		processor = DataProcessor(config.get_details(), db, processing_status, current_categories)
 		processor.paradox_to_sqlite()
-		
+
 		processing_status['is_processing'] = False
 		processing_status['message'] = 'Data processing completed successfully!'
-		
+
 	except Exception as e:
 		processing_status['is_processing'] = False
 		processing_status['error'] = str(e)
@@ -153,10 +158,10 @@ def search_products():
 	search_term = request.args.get('q', '')
 	if not db:
 		return jsonify({'error': 'Database not ready'})
-	
+
 	# Always use search function, even for empty terms (which will return empty)
 	products = db.search_products(search_term)
-	
+
 	# Convert rows to dictionaries for JSON serialization
 	product_list = []
 	for product in products:
@@ -172,27 +177,26 @@ def search_products():
 			'item_retail_price': product['item_retail_price'],
 			'item_promotional_price': product['item_promotional_price']
 		})
-	
+
 	return jsonify({'products': product_list, 'search_term': search_term})
 
 @app.route('/api/update-category', methods=['POST'])
 def update_category():
 	if not db:
 		return jsonify({'success': False, 'error': 'Database not ready'})
-	
+
 	data = request.json
 	product_ids = data.get('product_ids', [])
 	category_code = data.get('category_code', '')
-	
+
 	if not product_ids:
 		return jsonify({'success': False, 'error': 'No products selected'})
-	
+
 	if not category_code:
 		return jsonify({'success': False, 'error': 'No category selected'})
-	
+
 	success = db.update_product_category(product_ids, category_code)
 	category_name = CATEGORIES.get(category_code, '')
-	
 	return jsonify({
 		'success': success,
 		'category_name': category_name,
@@ -204,25 +208,25 @@ def update_category():
 def export_csv():
 	if not db:
 		return Response("Database not ready", status=500)
-	
+
 	# Get categorized products
 	products = db.get_products_by_category()
-	
+
 	# Create CSV in memory
 	output = io.StringIO()
 	writer = csv.writer(output, quoting=csv.QUOTE_ALL)
-	
+
 	# Write header
 	writer.writerow([
 		'Населено място',
-		'Търговски обект', 
+		'Търговски обект',
 		'Наименование на продукта',
 		'Код на продукта',
 		'Код на категория',  # Changed from 'Категория' to 'Код на категория'
 		'Цена на дребно',
 		'Цена в промоция'
 	])
-	
+
 	# Write data - using category CODE, not name
 	for product in products:
 		writer.writerow([
@@ -234,13 +238,13 @@ def export_csv():
 			str(product['item_retail_price']) if product['item_retail_price'] is not None else "",
 			str(product['item_promotional_price']) if product['item_promotional_price'] is not None else ""
 		])
-	
+
 	# Prepare response
 	output.seek(0)
 	response = Response(output.getvalue(), mimetype='text/csv')
 	response.headers['Content-Disposition'] = 'attachment; filename=categorized_products.csv'
-	
 	return response
 
 if __name__ == '__main__':
 	app.run(debug=True, host='0.0.0.0', port=5000)
+

@@ -6,10 +6,11 @@ import os
 import logging # Add logging
 
 class DataProcessor:
-	def __init__(self, config_details: dict, db: Database, status_dict: dict):
+	def __init__(self, config_details: dict, db: Database, status_dict: dict, category_assignments: dict = None):
 		self.config_details = config_details
 		self.db = db
 		self.status = status_dict
+		self.category_assignments = category_assignments or {} # Use the passed dictionary or an empty one
 		self.log_file = './skipped_rows.log'
 		# Check if this is the 'reloader' process in Flask debug mode
 		self.is_reloader = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
@@ -19,6 +20,7 @@ class DataProcessor:
 			with open(self.log_file, 'w', encoding='utf-8') as f:
 				f.write("Skipped rows log - Started at: " + time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
 				f.write("=" * 80 + "\n")
+
 		# Configure logging to write *only* to the skipped_rows.log file
 		# Remove the StreamHandler to prevent console output from the processor
 		logging.basicConfig(
@@ -60,7 +62,6 @@ class DataProcessor:
 			f.write(f"  Retail Price: {product_data[5]}\n")
 			f.write("-" * 40 + "\n")
 		logging.warning(f"Skipped row {row_num} in {market_name}: {reason}") # Use logging
-
 
 	def paradox_to_sqlite(self):
 		"""Convert Paradox database data to SQLite with required columns using batched inserts."""
@@ -107,6 +108,8 @@ class DataProcessor:
 
 				# Initialize batch for this market
 				current_batch = [] # List to hold the current batch of *valid* products for this market
+				# Track (item_code, market_name) tuples inserted in this batch for potential category updates
+				inserted_item_keys = []
 
 				# Process each row
 				for row_num, row in enumerate(table, 1):
@@ -119,7 +122,6 @@ class DataProcessor:
 							progress,
 							f"Market {market_count}/{len(self.config_details)}: {market_name} ({row_num}/{market_rows} rows)"
 						)
-
 					# Update terminal progress bar only when percentage changes
 					if progress != last_percent:
 						last_percent = progress
@@ -164,18 +166,26 @@ class DataProcessor:
 						item_name = str(row.Item) if row.Item is not None else ""
 						item_code = str(row.id) if row.id is not None else ""
 						client_price = float(row.ClientPrice) if row.ClientPrice is not None else 0.0 # Handle potential TypeError for non-numeric ClientPrice
+						# Construct the market name as stored in the DB
+						db_market_name = f"{market_info['name']} {market_info['address']}"
+
+						# Determine initial category code: use restored one if available, otherwise None
+						# Use the composite key (item_code, market_name) for lookup
+						initial_category_code = self.category_assignments.get((item_code, db_market_name))
+
 						product_data = (
 							market_info['settlement'],
-							f"{market_info['name']} {market_info['address']}",
+							db_market_name, # Use the constructed name
 							item_name,
 							item_code,
-							None,  # item_kzp_category_code (will be set via UI)
+							initial_category_code, # Use the restored category code or None
 							client_price,
-							None  # item_promotional_price
+							None
 						)
-
 						# Add product data to the current batch for this market
 						current_batch.append(product_data)
+						# Track the key (item_code, market_name) for this inserted item
+						inserted_item_keys.append((item_code, db_market_name))
 
 					except (ValueError, TypeError) as e:
 						# This handles cases like float("some_non_numeric_string")
@@ -202,6 +212,22 @@ class DataProcessor:
 					total_rows += len(current_batch)
 					logging.info(f"Successfully inserted batch of {len(current_batch)} products from {market_name}.")
 					print(f"  -> Inserted {len(current_batch)} valid rows.")
+
+					# --- Apply category assignments after batch insert for this market ---
+					# Find which of the *inserted* (item_code, market_name) keys had a category assigned previously
+					assignments_to_update = []
+					for item_key in inserted_item_keys:
+						 assigned_category = self.category_assignments.get(item_key)
+						 if assigned_category:
+							 # Append (category_code, item_code, market_name) tuple for the batch update
+							 # item_key is a tuple (item_code, market_name)
+							 assignments_to_update.append((assigned_category, item_key[0], item_key[1]))
+
+					if assignments_to_update:
+						logging.info(f"Updating categories for {len(assignments_to_update)} products in {market_name}...")
+						self.db.update_categories_batch(assignments_to_update)
+						logging.info(f"Categories updated for {market_name}.")
+
 				else:
 					# This should ideally not happen due to the exception being raised in insert_products_batch
 					# If it does, it indicates a deeper problem
