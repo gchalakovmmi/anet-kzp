@@ -1,4 +1,4 @@
 @echo off
-cd /d "%~dp0"
-call ..\venv\Scripts\activate.bat
-python ..\desktop.py
+cd /d "%~dp0.."
+venv\Scripts\python.exe desktop.py
+pause
