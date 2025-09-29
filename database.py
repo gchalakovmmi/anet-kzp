@@ -32,7 +32,7 @@ class Database:
 		"""Create the products table with composite primary key and separate product_categories table"""
 		# Create main products table with composite primary key AND an id column for FTS
 		create_table_sql = """
-		CREATE TABLE products (
+		CREATE TABLE IF NOT EXISTS products (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			settlement TEXT NOT NULL,
 			market_name TEXT NOT NULL,
@@ -43,10 +43,9 @@ class Database:
 			UNIQUE(market_name, item_code)
 		)
 		"""
-		
 		# Create FTS5 virtual table for fast searching
 		create_fts_sql = """
-		CREATE VIRTUAL TABLE products_fts USING fts5(
+		CREATE VIRTUAL TABLE IF NOT EXISTS products_fts USING fts5(
 			settlement,
 			market_name,
 			item_name,
@@ -55,7 +54,6 @@ class Database:
 			content_rowid='id'
 		)
 		"""
-		
 		# Create persistent product categories table
 		create_product_categories_sql = """
 		CREATE TABLE IF NOT EXISTS product_categories (
@@ -66,7 +64,6 @@ class Database:
 			FOREIGN KEY (market_name, item_code) REFERENCES products(market_name, item_code) ON DELETE CASCADE
 		)
 		"""
-		
 		# Create categories mapping table
 		create_categories_sql = """
 		CREATE TABLE IF NOT EXISTS categories (
@@ -74,18 +71,19 @@ class Database:
 			name TEXT NOT NULL
 		)
 		"""
-		
 		with self.connect() as conn:
 			conn.execute(create_table_sql)
 			conn.execute(create_fts_sql)
 			conn.execute(create_product_categories_sql)
 			conn.execute(create_categories_sql)
-			
 			# Enable foreign keys
 			conn.execute("PRAGMA foreign_keys = ON")
-			
 			# Populate FTS table with existing data (will be empty initially)
-			conn.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
+			try:
+				conn.execute("INSERT INTO products_fts(products_fts) VALUES('rebuild')")
+			except Exception as e:
+				# If FTS table is empty, this might fail - that's OK
+				logging.info(f"FTS rebuild might have failed (normal if table is empty): {e}")
 
 	def get_current_categories(self) -> dict:
 		"""
@@ -97,10 +95,20 @@ class Database:
 		FROM product_categories
 		WHERE category_code IS NOT NULL
 		"""
-		
 		category_map = {}
 		try:
 			with self.connect() as conn:
+				# Check if the table exists first
+				cursor = conn.execute("""
+					SELECT name FROM sqlite_master 
+					WHERE type='table' AND name='product_categories'
+				""")
+				table_exists = cursor.fetchone() is not None
+				
+				if not table_exists:
+					logging.info("product_categories table does not exist yet")
+					return category_map
+				
 				cursor = conn.execute(select_sql)
 				rows = cursor.fetchall()
 				for row in rows:
@@ -109,7 +117,6 @@ class Database:
 						category_map[key] = row['category_code']
 		except sqlite3.Error as e:
 			logging.error(f"Error fetching current categories: {e}")
-		
 		return category_map
 
 	def insert_products_batch(self, products_data: list) -> bool:

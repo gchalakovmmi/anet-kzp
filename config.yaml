@@ -1,35 +1,29 @@
-KR:
-  settlement: 07079 # Burgas. See: https://www.nsi.bg/nrnm/ekatte/index OR https://www.ekatte.com
-  name: "Анет4 KR"
-  address: "гр. Бургас ул. ХХХ №Х"
-  path_to_db: ./items.DB
+processing:
+  mode: startup # Options: startup, manual, scheduled
+  scheduled_time: "03:00"  # Only used if mode is scheduled (format: "HH:MM")
 
-MRA:
-  settlement: 07079
-  name: "Анет4 Меден Рудник А"
-  address: "гр. Бургас ул. ХХХ №Х"
-  path_to_db: ./items.DB
-
-MRB:
-  settlement: 07079
-  name: "Анет4 Меден Рудник B"
-  address: "гр. Бургас ул. ХХХ №Х"
-  path_to_db: ./items.DB
-
-MRV:
-  settlement: 07079
-  name: "Анет4 Меден Рудник V"
-  address: "гр. Бургас ул. ХХХ №Х"
-  path_to_db: ./items.DB
-
-MRZ:
-  settlement: 07079
-  name: "Анет4 Меден Рудник Z"
-  address: "гр. Бургас ул. ХХХ №Х"
-  path_to_db: ./items.DB
-
-TR:
-  settlement: 07079
-  name: "Анет4 Меден Рудник TR"
-  address: "гр. Бургас ул. ХХХ №Х"
-  path_to_db: ./items.DB
+markets:
+  - settlement: 07079
+    name: "Анет4 KR"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: ./items.DB
+  - settlement: 07079
+    name: "Анет4 Меден Рудник А"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: ./items.DB
+  - settlement: 07079
+    name: "Анет4 Меден Рудник B"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: ./items.DB
+  - settlement: 07079
+    name: "Анет4 Меден Рудник V"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: ./items.DB
+  - settlement: 07079
+    name: "Анет4 Меден Рудник Z"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: ./items.DB
+  - settlement: 07079
+    name: "Анет4 Меден Рудник TR"
+    address: "гр. Бургас ул. ХХХ №Х"
+    path_to_db: ./items.DB
