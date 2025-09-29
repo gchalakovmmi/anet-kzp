@@ -13,8 +13,6 @@ class DataProcessor:
 		self.category_assignments = category_assignments or {}
 		self.log_file = './skipped_rows.log'
 		
-		# Remove the reloader check since we handle it in app.py
-		
 		with open(self.log_file, 'w', encoding='utf-8') as f:
 			f.write("Skipped rows log - Started at: " + time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
 			f.write("=" * 80 + "\n")
@@ -59,8 +57,6 @@ class DataProcessor:
 
 	def paradox_to_sqlite(self):
 		"""Convert Paradox database data to SQLite with persistent categories"""
-		# Remove the reloader check since we handle it in app.py
-		
 		total_rows = 0
 		skipped_rows = 0
 		market_count = 0
@@ -81,7 +77,10 @@ class DataProcessor:
 		for market_info in self.markets:
 			market_count += 1
 			market_name = market_info['name']
-			self._update_status(market_name, 0, f"Starting market {market_count}/{len(self.markets)}: {market_name}")
+			
+			# Update status at the start of each market with current progress
+			current_progress = int((processed_rows / total_all_rows) * 100)
+			self._update_status(market_name, current_progress, f"Starting market {market_count}/{len(self.markets)}: {market_name}")
 			logging.info(f"Processing market {market_count}/{len(self.markets)}: {market_name}")
 			print(f"\nProcessing market {market_count}/{len(self.markets)}: {market_name}")
 			
@@ -99,7 +98,8 @@ class DataProcessor:
 					processed_rows += 1
 					progress = int((processed_rows / total_all_rows) * 100)
 					
-					if row_num % 100 == 0 or row_num == market_rows:
+					# Update status more frequently for better progress tracking
+					if row_num % 50 == 0 or row_num == market_rows or progress != last_percent:
 						self._update_status(
 							market_name,
 							progress,

@@ -372,6 +372,7 @@
 							<i class="bi bi-search" style="font-size: 3rem;"></i>
 							<h4>Няма намерени продукти</h4>
 							<p>Променете критериите за търсене и опитайте отново.</p>
+							<p><small>Опитайте с по-общи термини или различни ключови думи</small></p>
 						</div>
 					</div>
 					<!-- Selection summary -->
@@ -384,13 +385,15 @@
 	</div>
 	<script>
 		let currentProducts = [];
+		let currentSearchTerm = '';
+		let isProcessingActive = false;
 		
 		// Check processing status periodically
 		function checkProcessingStatus() {
 			fetch('/api/processing-status')
 				.then(response => response.json())
 				.then(data => {
-					// Update loading screen
+					// Update loading screen with the exact progress from backend
 					document.getElementById('loadingProgress').style.width = data.progress + '%';
 					document.getElementById('progressPercent').textContent = data.progress;
 					document.getElementById('currentMarket').textContent = data.current_market || '-';
@@ -402,26 +405,34 @@
 						document.getElementById('errorText').textContent = data.error;
 						document.getElementById('errorMessage').style.display = 'block';
 						document.getElementById('loadingScreen').style.display = 'flex';
+						isProcessingActive = false;
 						return;
 					}
 					
 					// Show/hide loading screen based on processing status
 					if (data.is_processing) {
+						isProcessingActive = true;
 						document.getElementById('loadingScreen').style.display = 'flex';
 						document.getElementById('mainContent').style.display = 'none';
-						// Continue checking status
-						setTimeout(checkProcessingStatus, 1000);
+						// Continue checking status more frequently during processing
+						setTimeout(checkProcessingStatus, 500);
 					} else {
+						isProcessingActive = false;
 						document.getElementById('loadingScreen').style.display = 'none';
 						document.getElementById('mainContent').style.display = 'flex';
 						
-						// If database is ready, enable export and show search prompt
+						// If database is ready, enable export
 						if (data.database_ready) {
 							document.getElementById('exportCsv').disabled = false;
-							showSearchPrompt();
+							// Only show search prompt if we don't have current search results
+							if (currentSearchTerm === '') {
+								showSearchPrompt();
+							}
 						} else {
 							document.getElementById('exportCsv').disabled = true;
 						}
+						// Check status less frequently when not processing
+						setTimeout(checkProcessingStatus, 3000);
 					}
 				})
 				.catch(error => {
@@ -441,6 +452,9 @@
 			.then(response => response.json())
 			.then(data => {
 				if (data.success) {
+					// Clear current search when starting new processing
+					currentSearchTerm = '';
+					document.getElementById('searchInput').value = '';
 					// Start checking status to show progress
 					setTimeout(checkProcessingStatus, 1000);
 				} else {
@@ -455,16 +469,20 @@
 		
 		// Show search prompt when no search term is entered
 		function showSearchPrompt() {
-			const tbody = document.getElementById('productsTableBody');
-			const noResults = document.getElementById('noResults');
-			const searchPrompt = document.getElementById('searchPrompt');
-			tbody.innerHTML = '';
-			noResults.style.display = 'none';
-			searchPrompt.style.display = 'block';
+			// Only show search prompt if we're not in the middle of processing
+			if (!isProcessingActive) {
+				const tbody = document.getElementById('productsTableBody');
+				const noResults = document.getElementById('noResults');
+				const searchPrompt = document.getElementById('searchPrompt');
+				tbody.innerHTML = '';
+				noResults.style.display = 'none';
+				searchPrompt.style.display = 'block';
+			}
 		}
 		
 		// Load products from the server
 		function loadProducts(searchTerm = '') {
+			currentSearchTerm = searchTerm;
 			let url = '/api/search';
 			if (searchTerm) {
 				url += '?q=' + encodeURIComponent(searchTerm);
@@ -694,6 +712,9 @@
 			
 			// Initialize the application
 			initializeApplication();
+			
+			// Show initial search prompt
+			showSearchPrompt();
 			
 			// Start checking processing status
 			checkProcessingStatus();
