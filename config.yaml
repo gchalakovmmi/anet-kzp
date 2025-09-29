@@ -1,6 +1,6 @@
 KR:
   settlement: 07079 # Burgas. See: https://www.nsi.bg/nrnm/ekatte/index OR https://www.ekatte.com
-  name: "Анет4 Меден Рудник А"
+  name: "Анет4 KR"
   address: "гр. Бургас ул. ХХХ №Х"
   path_to_db: ./items.DB
 
@@ -12,24 +12,24 @@ MRA:
 
 MRB:
   settlement: 07079
-  name: "Анет4 Меден Рудник А"
+  name: "Анет4 Меден Рудник B"
   address: "гр. Бургас ул. ХХХ №Х"
   path_to_db: ./items.DB
 
 MRV:
   settlement: 07079
-  name: "Анет4 Меден Рудник А"
+  name: "Анет4 Меден Рудник V"
   address: "гр. Бургас ул. ХХХ №Х"
   path_to_db: ./items.DB
 
 MRZ:
   settlement: 07079
-  name: "Анет4 Меден Рудник А"
+  name: "Анет4 Меден Рудник Z"
   address: "гр. Бургас ул. ХХХ №Х"
   path_to_db: ./items.DB
 
 TR:
   settlement: 07079
-  name: "Анет4 Меден Рудник А"
+  name: "Анет4 Меден Рудник TR"
   address: "гр. Бургас ул. ХХХ №Х"
   path_to_db: ./items.DB

@@ -115,10 +115,10 @@ def initialize_app():
 
 		# --- SAVE CURRENT CATEGORIES BEFORE DROPPING TABLES ---
 		processing_status['message'] = 'Saving current category assignments...'
-		current_categories = db.get_current_categories_by_code()
+		current_categories = db.get_current_categories()
 		logging.info(f"Saved {len(current_categories)} category assignments.")
 
-		# Drop and recreate tables for clean start
+		# Drop and recreate tables for clean start (preserves product_categories)
 		processing_status['message'] = 'Setting up database tables...'
 		db.drop_tables()
 		db.create_tables()
@@ -128,7 +128,6 @@ def initialize_app():
 
 		# Process Paradox data, passing the saved categories
 		processing_status['message'] = 'Starting data processing...'
-		# Pass the saved current_categories dictionary to the processor
 		processor = DataProcessor(config.get_details(), db, processing_status, current_categories)
 		processor.paradox_to_sqlite()
 
@@ -159,15 +158,13 @@ def search_products():
 	if not db:
 		return jsonify({'error': 'Database not ready'})
 
-	# Always use search function, even for empty terms (which will return empty)
 	products = db.search_products(search_term)
 
-	# Convert rows to dictionaries for JSON serialization
 	product_list = []
 	for product in products:
 		category_name = db.get_category_name(product['item_kzp_category_code']) if product['item_kzp_category_code'] else ""
 		product_list.append({
-			'id': product['id'],
+			'id': product['id'],  # Use the id column
 			'settlement': product['settlement'],
 			'market_name': product['market_name'],
 			'item_name': product['item_name'],
@@ -209,37 +206,32 @@ def export_csv():
 	if not db:
 		return Response("Database not ready", status=500)
 
-	# Get categorized products
 	products = db.get_products_by_category()
 
-	# Create CSV in memory
 	output = io.StringIO()
 	writer = csv.writer(output, quoting=csv.QUOTE_ALL)
 
-	# Write header
 	writer.writerow([
 		'Населено място',
 		'Търговски обект',
 		'Наименование на продукта',
 		'Код на продукта',
-		'Код на категория',  # Changed from 'Категория' to 'Код на категория'
+		'Код на категория',
 		'Цена на дребно',
 		'Цена в промоция'
 	])
 
-	# Write data - using category CODE, not name
 	for product in products:
 		writer.writerow([
 			product['settlement'],
 			product['market_name'],
 			product['item_name'],
 			product['item_code'],
-			product['item_kzp_category_code'] or "",  # Use the code, not the name
+			product['item_kzp_category_code'] or "",
 			str(product['item_retail_price']) if product['item_retail_price'] is not None else "",
 			str(product['item_promotional_price']) if product['item_promotional_price'] is not None else ""
 		])
 
-	# Prepare response
 	output.seek(0)
 	response = Response(output.getvalue(), mimetype='text/csv')
 	response.headers['Content-Disposition'] = 'attachment; filename=categorized_products.csv'
@@ -247,4 +239,3 @@ def export_csv():
 
 if __name__ == '__main__':
 	app.run(debug=True, host='0.0.0.0', port=5000)
-
