@@ -528,7 +528,6 @@
 					console.error('Error loading products:', error);
 				});
 		}
-
 		// Load products by category
 		function loadProductsByCategory(categoryCode) {
 			if (!categoryCode) {
@@ -555,7 +554,6 @@
 					console.error('Error loading products by category:', error);
 				});
 		}
-
 		// Display products in the table
 		function displayProducts(products, searchTerm) {
 			const tbody = document.getElementById('productsTableBody');
@@ -633,10 +631,8 @@
 					showSearchPrompt();
 				}
 			});
-
 			// Clear search button
 			document.getElementById('clearSearchButton').addEventListener('click', clearSearch);
-
 			// Use event delegation for checkbox changes
 			document.getElementById('productsTableBody').addEventListener('change', function(e) {
 				if (e.target && e.target.classList.contains('item-checkbox')) {
@@ -757,12 +753,9 @@
 				});
 			});
 			
-			// Search functionality - clear category when searching
+			// Search functionality - DO NOT clear category when searching
 			document.getElementById('searchButton').addEventListener('click', function() {
 				const searchTerm = document.getElementById('searchInput').value.trim();
-				// Clear category selection when searching
-				document.getElementById('categorySelect').value = '';
-				currentCategoryCode = '';
 				if (searchTerm) {
 					loadProducts(searchTerm);
 				} else {
@@ -770,12 +763,9 @@
 				}
 			});
 			
-			// Search on Enter key - clear category when searching
+			// Search on Enter key - DO NOT clear category when searching
 			document.getElementById('searchInput').addEventListener('keypress', function(e) {
 				if (e.key === 'Enter') {
-					// Clear category selection when searching
-					document.getElementById('categorySelect').value = '';
-					currentCategoryCode = '';
 					document.getElementById('searchButton').click();
 				}
 			});
