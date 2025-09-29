@@ -16,7 +16,6 @@
 			--categorized-bg: #e8f5e8;
 			--categorized-border: #c8e6c9;
 		}
-		
 		html, body {
 			height: 100%;
 			margin: 0;
@@ -24,32 +23,27 @@
 			background-color: #f5f5f5;
 			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 		}
-		
 		.container-fluid {
 			height: 100vh;
 			padding: 0;
 		}
-		
 		.card {
 			height: 100%;
 			border: none;
 			border-radius: 0;
 		}
-		
 		.card-header {
 			background-color: var(--primary-color) !important;
 			color: white;
 			border-radius: 0 !important;
 			padding: 0.75rem 1rem;
 		}
-		
 		.card-body {
 			padding: 1rem;
 			overflow-y: auto;
 			display: flex;
 			flex-direction: column;
 		}
-		
 		.loading-screen {
 			display: flex;
 			flex-direction: column;
@@ -58,75 +52,61 @@
 			height: 100%;
 			text-align: center;
 		}
-		
 		.progress {
 			width: 80%;
 			height: 20px;
 			margin: 20px 0;
 		}
-		
 		.main-content {
 			display: none;
 			flex: 1;
 			flex-direction: column;
 			min-height: 0;
 		}
-		
 		.btn-primary {
 			background-color: var(--secondary-color);
 			border-color: var(--secondary-color);
 		}
-		
 		.btn-primary:hover {
 			background-color: var(--primary-color);
 			border-color: var(--primary-color);
 		}
-		
 		.btn-outline-secondary {
 			color: var(--secondary-color);
 			border-color: var(--secondary-color);
 		}
-		
 		.btn-outline-secondary:hover {
 			background-color: var(--secondary-color);
 			color: white;
 		}
-		
 		.btn-success {
 			background-color: var(--accent-color);
 			border-color: var(--accent-color);
 			color: var(--dark-color);
 		}
-		
 		.btn-success:hover {
 			background-color: #7aa87a;
 			border-color: #7aa87a;
 		}
-		
 		.btn-export {
 			background-color: #6c757d;
 			border-color: #6c757d;
 			color: white;
 		}
-		
 		.btn-export:hover {
 			background-color: #5a6268;
 			border-color: #545b62;
 		}
-		
 		.table-hover tbody tr:hover {
 			background-color: rgba(143, 188, 143, 0.1);
 		}
-		
 		.categorized-row {
 			background-color: var(--categorized-bg) !important;
 			border-left: 4px solid var(--categorized-border);
 		}
-		
 		.categorized-row:hover {
 			background-color: #d4edda !important;
 		}
-		
 		.search-section {
 			background-color: white;
 			border-radius: 0.375rem;
@@ -134,7 +114,6 @@
 			margin-bottom: 1rem;
 			box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
 		}
-		
 		.table-container {
 			flex: 1;
 			overflow-y: auto;
@@ -142,18 +121,15 @@
 			border-radius: 0.375rem;
 			background-color: white;
 		}
-		
 		.table {
 			margin-bottom: 0;
 		}
-		
 		.table thead th {
 			position: sticky;
 			top: 0;
 			background-color: #e9ecef;
 			z-index: 10;
 		}
-		
 		.error-message {
 			color: #dc3545;
 			background-color: #f8d7da;
@@ -162,25 +138,21 @@
 			padding: 1rem;
 			margin: 1rem 0;
 		}
-		
 		.no-results {
 			text-align: center;
 			padding: 2rem;
 			color: #6c757d;
 		}
-		
 		.search-prompt {
 			text-align: center;
 			padding: 3rem;
 			color: #6c757d;
 		}
-		
 		.action-buttons {
 			display: flex;
 			gap: 0.5rem;
 			justify-content: flex-end;
 		}
-		
 		.category-badge {
 			background-color: var(--accent-color);
 			color: var(--dark-color);
@@ -208,24 +180,20 @@
 					</div>
 					<h3 class="mt-3" id="loadingTitle">Зареждане на данни...</h3>
 					<p id="loadingMessage">Моля, изчакайте докато се обработват данните от базата.</p>
-					
 					<div class="progress">
-						<div id="loadingProgress" class="progress-bar progress-bar-striped progress-bar-animated" 
+						<div id="loadingProgress" class="progress-bar progress-bar-striped progress-bar-animated"
 							 role="progressbar" style="width: 0%"></div>
 					</div>
-					
 					<div id="loadingDetails" class="mt-2">
 						<small>Обработва се: <span id="currentMarket">-</span></small><br>
 						<small>Прогрес: <span id="progressPercent">0</span>%</small>
 					</div>
-					
 					<div id="errorMessage" class="error-message mt-3" style="display: none;">
 						<h5><i class="bi bi-exclamation-triangle"></i> Грешка при обработка на данните</h5>
 						<p id="errorText"></p>
 						<button class="btn btn-warning mt-2" onclick="location.reload()">Опитайте отново</button>
 					</div>
 				</div>
-				
 				<!-- Main Content (hidden until loading completes) -->
 				<div id="mainContent" class="main-content">
 					<!-- Category selection -->
@@ -309,7 +277,6 @@
 							</select>
 						</div>
 					</div>
-
 					<!-- Search section -->
 					<div class="search-section">
 						<div class="row">
@@ -335,7 +302,6 @@
 							</div>
 						</div>
 					</div>
-
 					<!-- Items table -->
 					<div class="table-container">
 						<table class="table table-hover">
@@ -372,7 +338,6 @@
 							<p>Променете критериите за търсене и опитайте отново.</p>
 						</div>
 					</div>
-
 					<!-- Selection summary -->
 					<div class="alert alert-info mt-3 mb-0">
 						<strong>Избрани продукти: <span id="selectedCount">0</span></strong>
@@ -381,10 +346,8 @@
 			</div>
 		</div>
 	</div>
-
 	<script>
 		let currentProducts = [];
-		
 		// Check processing status periodically
 		function checkProcessingStatus() {
 			fetch('/api/processing-status')
@@ -395,7 +358,6 @@
 					document.getElementById('progressPercent').textContent = data.progress;
 					document.getElementById('currentMarket').textContent = data.current_market || '-';
 					document.getElementById('loadingMessage').textContent = data.message;
-					
 					// Handle errors
 					if (data.error) {
 						document.getElementById('loadingTitle').textContent = 'Грешка при обработка';
@@ -403,13 +365,11 @@
 						document.getElementById('errorMessage').style.display = 'block';
 						return;
 					}
-					
 					// Check if processing is complete
 					if (!data.is_processing) {
 						// Hide loading screen and show main content
 						document.getElementById('loadingScreen').style.display = 'none';
 						document.getElementById('mainContent').style.display = 'flex';
-						
 						// Show search prompt initially
 						showSearchPrompt();
 						initializeApplication();
@@ -424,27 +384,23 @@
 					setTimeout(checkProcessingStatus, 3000);
 				});
 		}
-		
 		// Show search prompt when no search term is entered
 		function showSearchPrompt() {
 			const tbody = document.getElementById('productsTableBody');
 			const noResults = document.getElementById('noResults');
 			const searchPrompt = document.getElementById('searchPrompt');
 			const exportButton = document.getElementById('exportCsv');
-			
 			tbody.innerHTML = '';
 			noResults.style.display = 'none';
 			searchPrompt.style.display = 'block';
 			exportButton.disabled = true;
 		}
-		
 		// Load products from the server
 		function loadProducts(searchTerm = '') {
 			let url = '/api/search';
 			if (searchTerm) {
 				url += '?q=' + encodeURIComponent(searchTerm);
 			}
-			
 			fetch(url)
 				.then(response => response.json())
 				.then(data => {
@@ -452,7 +408,6 @@
 						console.error('Error loading products:', data.error);
 						return;
 					}
-					
 					currentProducts = data.products || [];
 					displayProducts(currentProducts, data.search_term);
 				})
@@ -460,21 +415,17 @@
 					console.error('Error loading products:', error);
 				});
 		}
-		
 		// Display products in the table
 		function displayProducts(products, searchTerm) {
 			const tbody = document.getElementById('productsTableBody');
 			const noResults = document.getElementById('noResults');
 			const searchPrompt = document.getElementById('searchPrompt');
 			const exportButton = document.getElementById('exportCsv');
-			
 			// Hide both prompts initially
 			noResults.style.display = 'none';
 			searchPrompt.style.display = 'none';
-			
 			if (products.length === 0) {
 				tbody.innerHTML = '';
-				
 				if (!searchTerm || searchTerm.trim() === '') {
 					// Show search prompt when no search term
 					searchPrompt.style.display = 'block';
@@ -482,19 +433,15 @@
 					// Show no results when search term returns nothing
 					noResults.style.display = 'block';
 				}
-				
 				exportButton.disabled = true;
 				return;
 			}
-			
 			exportButton.disabled = false;
-			
 			tbody.innerHTML = products.map(product => {
 				const isCategorized = product.item_kzp_category_code && product.item_kzp_category_code !== '';
 				const rowClass = isCategorized ? 'categorized-row' : '';
-				const categoryDisplay = isCategorized ? 
+				const categoryDisplay = isCategorized ?
 					`<span class="category-badge">${product.item_kzp_category_name}</span>` : '';
-				
 				return `
 				<tr class="${rowClass}" data-product-id="${product.id}">
 					<td>
@@ -512,16 +459,13 @@
 				</tr>
 				`;
 			}).join('');
-			
 			// Update checkbox event listeners
 			const checkboxes = document.querySelectorAll('.item-checkbox');
 			checkboxes.forEach(checkbox => {
 				checkbox.addEventListener('change', updateSelectedCount);
 			});
-			
 			updateSelectedCount();
 		}
-		
 		// Initialize the main application after loading is complete
 		function initializeApplication() {
 			// Select all functionality
@@ -532,7 +476,6 @@
 				});
 				updateSelectedCount();
 			});
-
 			// Clear selection button
 			document.getElementById('clearSelection').addEventListener('click', function() {
 				document.getElementById('selectAll').checked = false;
@@ -542,24 +485,19 @@
 				});
 				updateSelectedCount();
 			});
-
 			// Add to category button
 			document.getElementById('addToCategory').addEventListener('click', function() {
 				const selectedCategory = document.getElementById('categorySelect').value;
-				
 				if (!selectedCategory) {
 					alert('Моля, изберете категория преди да добавите продукти.');
 					return;
 				}
-				
 				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
 				const selectedProductIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-				
 				if (selectedProductIds.length === 0) {
 					alert('Моля, изберете поне един продукт преди да го добавите към категория.');
 					return;
 				}
-				
 				// Send request to update categories
 				fetch('/api/update-category', {
 					method: 'POST',
@@ -583,9 +521,6 @@
 								categoryCell.innerHTML = `<span class="category-badge">${data.category_name}</span>`;
 							}
 						});
-						
-						alert(`Добавени ${data.updated_count} продукта към категория: ${data.category_name}`);
-						
 						// Clear selection
 						document.getElementById('selectAll').checked = false;
 						selectedCheckboxes.forEach(checkbox => {
@@ -601,7 +536,6 @@
 					alert('Грешка при добавяне на категория.');
 				});
 			});
-
 			// Search functionality
 			document.getElementById('searchButton').addEventListener('click', function() {
 				const searchTerm = document.getElementById('searchInput').value.trim();
@@ -611,30 +545,25 @@
 					showSearchPrompt();
 				}
 			});
-			
 			// Search on Enter key
 			document.getElementById('searchInput').addEventListener('keypress', function(e) {
 				if (e.key === 'Enter') {
 					document.getElementById('searchButton').click();
 				}
 			});
-
 			// Export CSV functionality
 			document.getElementById('exportCsv').addEventListener('click', function() {
 				window.open('/api/export-csv', '_blank');
 			});
-
 			// Update selected count when any checkbox changes
 			function updateSelectedCount() {
 				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
 				document.getElementById('selectedCount').textContent = selectedCheckboxes.length;
-				
 				// Update select all checkbox state
 				const totalCheckboxes = document.querySelectorAll('.item-checkbox');
 				document.getElementById('selectAll').checked = selectedCheckboxes.length > 0 && selectedCheckboxes.length === totalCheckboxes.length;
 			}
 		}
-		
 		// Start checking processing status when page loads
 		document.addEventListener('DOMContentLoaded', function() {
 			checkProcessingStatus();
