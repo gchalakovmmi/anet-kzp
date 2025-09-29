@@ -398,6 +398,7 @@
 		let currentSearchTerm = '';
 		let currentCategoryCode = '';
 		let isProcessingActive = false;
+		let statusCheckInterval = null;
 		
 		// Check processing status periodically
 		function checkProcessingStatus() {
@@ -423,29 +424,44 @@
 						isProcessingActive = true;
 						document.getElementById('loadingScreen').style.display = 'flex';
 						document.getElementById('mainContent').style.display = 'none';
-						// Continue checking status more frequently during processing
-						setTimeout(checkProcessingStatus, 500);
+						// Continue checking status every 2 seconds during processing
+						if (statusCheckInterval) {
+							clearInterval(statusCheckInterval);
+						}
+						statusCheckInterval = setInterval(checkProcessingStatus, 2000);
 					} else {
 						isProcessingActive = false;
 						document.getElementById('loadingScreen').style.display = 'none';
 						document.getElementById('mainContent').style.display = 'flex';
-						// If database is ready, enable export
+						// If database is ready, enable export and stop checking
 						if (data.database_ready) {
 							document.getElementById('exportCsv').disabled = false;
+							// Stop checking status after processing is complete
+							if (statusCheckInterval) {
+								clearInterval(statusCheckInterval);
+								statusCheckInterval = null;
+							}
 							// Only show search prompt if we don't have current search results AND no category is selected
 							if (currentSearchTerm === '' && currentCategoryCode === '') {
 								showSearchPrompt();
 							}
 						} else {
 							document.getElementById('exportCsv').disabled = true;
+							// Check status every 10 seconds when not processing but database not ready
+							if (statusCheckInterval) {
+								clearInterval(statusCheckInterval);
+							}
+							statusCheckInterval = setInterval(checkProcessingStatus, 10000);
 						}
-						// Check status less frequently when not processing
-						setTimeout(checkProcessingStatus, 3000);
 					}
 				})
 				.catch(error => {
 					console.error('Error checking status:', error);
-					setTimeout(checkProcessingStatus, 3000);
+					// Continue checking even on error, but less frequently (every 30 seconds)
+					if (statusCheckInterval) {
+						clearInterval(statusCheckInterval);
+					}
+					statusCheckInterval = setInterval(checkProcessingStatus, 30000);
 				});
 		}
 		
@@ -466,7 +482,7 @@
 					document.getElementById('searchInput').value = '';
 					document.getElementById('categorySelect').value = '';
 					// Start checking status to show progress
-					setTimeout(checkProcessingStatus, 1000);
+					checkProcessingStatus();
 				} else {
 					alert('Грешка при стартиране на обработката: ' + data.error);
 				}
