@@ -21,7 +21,12 @@ venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Run the program
+## Run the web server
 ```python
-python main.py
+python app.py
 ```
+
+Or in Windows double click the windows/run_web_server.bat.
+
+## Run the desktop app (Windows only)
+Double click the windows/run_desktop_app.bat.
