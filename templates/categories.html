@@ -188,6 +188,14 @@
 			display: flex;
 			gap: 0.5rem;
 		}
+		.clear-search-btn {
+			border-top-right-radius: 0;
+			border-bottom-right-radius: 0;
+		}
+		.search-btn {
+			border-top-left-radius: 0;
+			border-bottom-left-radius: 0;
+		}
 	</style>
 </head>
 <body>
@@ -226,7 +234,6 @@
 						<button class="btn btn-warning mt-2" onclick="location.reload()">Опитайте отново</button>
 					</div>
 				</div>
-				
 				<!-- Main Content -->
 				<div id="mainContent" class="main-content">
 					<!-- Category selection -->
@@ -319,7 +326,10 @@
 										<i class="bi bi-search"></i>
 									</span>
 									<input type="text" class="form-control" placeholder="Търсене на продукти..." id="searchInput">
-									<button class="btn btn-primary" type="button" id="searchButton">
+									<button class="btn btn-outline-secondary clear-search-btn" type="button" id="clearSearchButton" title="Изчисти търсенето">
+										<i class="bi bi-x"></i>
+									</button>
+									<button class="btn btn-primary search-btn" type="button" id="searchButton">
 										Търси
 									</button>
 								</div>
@@ -386,6 +396,7 @@
 	<script>
 		let currentProducts = [];
 		let currentSearchTerm = '';
+		let currentCategoryCode = '';
 		let isProcessingActive = false;
 		
 		// Check processing status periodically
@@ -398,7 +409,6 @@
 					document.getElementById('progressPercent').textContent = data.progress;
 					document.getElementById('currentMarket').textContent = data.current_market || '-';
 					document.getElementById('loadingMessage').textContent = data.message;
-					
 					// Handle errors
 					if (data.error) {
 						document.getElementById('loadingTitle').textContent = 'Грешка при обработка';
@@ -408,7 +418,6 @@
 						isProcessingActive = false;
 						return;
 					}
-					
 					// Show/hide loading screen based on processing status
 					if (data.is_processing) {
 						isProcessingActive = true;
@@ -420,12 +429,11 @@
 						isProcessingActive = false;
 						document.getElementById('loadingScreen').style.display = 'none';
 						document.getElementById('mainContent').style.display = 'flex';
-						
 						// If database is ready, enable export
 						if (data.database_ready) {
 							document.getElementById('exportCsv').disabled = false;
-							// Only show search prompt if we don't have current search results
-							if (currentSearchTerm === '') {
+							// Only show search prompt if we don't have current search results AND no category is selected
+							if (currentSearchTerm === '' && currentCategoryCode === '') {
 								showSearchPrompt();
 							}
 						} else {
@@ -454,7 +462,9 @@
 				if (data.success) {
 					// Clear current search when starting new processing
 					currentSearchTerm = '';
+					currentCategoryCode = '';
 					document.getElementById('searchInput').value = '';
+					document.getElementById('categorySelect').value = '';
 					// Start checking status to show progress
 					setTimeout(checkProcessingStatus, 1000);
 				} else {
@@ -467,10 +477,10 @@
 			});
 		}
 		
-		// Show search prompt when no search term is entered
+		// Show search prompt when no search term is entered and no category is selected
 		function showSearchPrompt() {
-			// Only show search prompt if we're not in the middle of processing
-			if (!isProcessingActive) {
+			// Only show search prompt if we're not in the middle of processing and no category is selected
+			if (!isProcessingActive && currentCategoryCode === '') {
 				const tbody = document.getElementById('productsTableBody');
 				const noResults = document.getElementById('noResults');
 				const searchPrompt = document.getElementById('searchPrompt');
@@ -483,6 +493,7 @@
 		// Load products from the server
 		function loadProducts(searchTerm = '') {
 			currentSearchTerm = searchTerm;
+			currentCategoryCode = '';
 			let url = '/api/search';
 			if (searchTerm) {
 				url += '?q=' + encodeURIComponent(searchTerm);
@@ -501,24 +512,50 @@
 					console.error('Error loading products:', error);
 				});
 		}
-		
+
+		// Load products by category
+		function loadProductsByCategory(categoryCode) {
+			if (!categoryCode) {
+				currentCategoryCode = '';
+				showSearchPrompt();
+				return;
+			}
+			currentCategoryCode = categoryCode;
+			let url = '/api/products-by-category?category_code=' + encodeURIComponent(categoryCode);
+			fetch(url)
+				.then(response => response.json())
+				.then(data => {
+					if (data.error) {
+						console.error('Error loading products by category:', data.error);
+						return;
+					}
+					currentProducts = data.products || [];
+					displayProducts(currentProducts, '');
+					// Clear the search input when loading by category
+					document.getElementById('searchInput').value = '';
+					currentSearchTerm = '';
+				})
+				.catch(error => {
+					console.error('Error loading products by category:', error);
+				});
+		}
+
 		// Display products in the table
 		function displayProducts(products, searchTerm) {
 			const tbody = document.getElementById('productsTableBody');
 			const noResults = document.getElementById('noResults');
 			const searchPrompt = document.getElementById('searchPrompt');
-			
 			// Hide both prompts initially
 			noResults.style.display = 'none';
 			searchPrompt.style.display = 'none';
 			
 			if (products.length === 0) {
 				tbody.innerHTML = '';
-				if (!searchTerm || searchTerm.trim() === '') {
-					// Show search prompt when no search term
+				if ((!searchTerm || searchTerm.trim() === '') && currentCategoryCode === '') {
+					// Show search prompt when no search term and no category
 					searchPrompt.style.display = 'block';
 				} else {
-					// Show no results when search term returns nothing
+					// Show no results when search term returns nothing or category has no products
 					noResults.style.display = 'block';
 				}
 				return;
@@ -529,7 +566,6 @@
 				const rowClass = isCategorized ? 'categorized-row' : '';
 				const categoryDisplay = isCategorized ?
 					`<span class="category-badge">${product.item_kzp_category_name}</span>` : '';
-				
 				return `
 				<tr class="${rowClass}" data-product-id="${product.id}">
 					<td>
@@ -547,7 +583,6 @@
 				</tr>
 				`;
 			}).join('');
-			
 			updateSelectedCount();
 		}
 		
@@ -555,14 +590,37 @@
 		function updateSelectedCount() {
 			const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
 			document.getElementById('selectedCount').textContent = selectedCheckboxes.length;
-			
 			// Update select all checkbox state
 			const totalCheckboxes = document.querySelectorAll('.item-checkbox');
 			document.getElementById('selectAll').checked = selectedCheckboxes.length > 0 && selectedCheckboxes.length === totalCheckboxes.length;
 		}
 		
+		// Clear search function
+		function clearSearch() {
+			document.getElementById('searchInput').value = '';
+			document.getElementById('categorySelect').value = '';
+			currentSearchTerm = '';
+			currentCategoryCode = '';
+			showSearchPrompt();
+		}
+		
 		// Initialize the main application after loading is complete
 		function initializeApplication() {
+			// Category selection change event
+			document.getElementById('categorySelect').addEventListener('change', function() {
+				const categoryCode = this.value;
+				if (categoryCode) {
+					loadProductsByCategory(categoryCode);
+				} else {
+					// If category is cleared, show search prompt
+					currentCategoryCode = '';
+					showSearchPrompt();
+				}
+			});
+
+			// Clear search button
+			document.getElementById('clearSearchButton').addEventListener('click', clearSearch);
+
 			// Use event delegation for checkbox changes
 			document.getElementById('productsTableBody').addEventListener('change', function(e) {
 				if (e.target && e.target.classList.contains('item-checkbox')) {
@@ -596,15 +654,12 @@
 					alert('Моля, изберете категория преди да добавите продукти.');
 					return;
 				}
-				
 				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
 				const selectedProductIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-				
 				if (selectedProductIds.length === 0) {
 					alert('Моля, изберете поне един продукт преди да го добавите към категория.');
 					return;
 				}
-				
 				// Send request to update categories
 				fetch('/api/update-category', {
 					method: 'POST',
@@ -619,10 +674,13 @@
 				.then(response => response.json())
 				.then(data => {
 					if (data.success) {
-						// Reload current search to show updated categories
-						const currentSearch = document.getElementById('searchInput').value.trim();
-						loadProducts(currentSearch);
-						
+						// Reload current view to show updated categories
+						if (currentCategoryCode) {
+							loadProductsByCategory(currentCategoryCode);
+						} else {
+							const currentSearch = document.getElementById('searchInput').value.trim();
+							loadProducts(currentSearch);
+						}
 						// Clear selection
 						document.getElementById('selectAll').checked = false;
 						selectedCheckboxes.forEach(checkbox => {
@@ -643,12 +701,10 @@
 			document.getElementById('removeFromCategory').addEventListener('click', function() {
 				const selectedCheckboxes = document.querySelectorAll('.item-checkbox:checked');
 				const selectedProductIds = Array.from(selectedCheckboxes).map(cb => cb.value);
-				
 				if (selectedProductIds.length === 0) {
 					alert('Моля, изберете поне един продукт преди да го премахнете от категория.');
 					return;
 				}
-				
 				// Send request to remove categories
 				fetch('/api/remove-category', {
 					method: 'POST',
@@ -662,10 +718,13 @@
 				.then(response => response.json())
 				.then(data => {
 					if (data.success) {
-						// Reload current search to show updated categories
-						const currentSearch = document.getElementById('searchInput').value.trim();
-						loadProducts(currentSearch);
-						
+						// Reload current view to show updated categories
+						if (currentCategoryCode) {
+							loadProductsByCategory(currentCategoryCode);
+						} else {
+							const currentSearch = document.getElementById('searchInput').value.trim();
+							loadProducts(currentSearch);
+						}
 						// Clear selection
 						document.getElementById('selectAll').checked = false;
 						selectedCheckboxes.forEach(checkbox => {
@@ -682,9 +741,12 @@
 				});
 			});
 			
-			// Search functionality
+			// Search functionality - clear category when searching
 			document.getElementById('searchButton').addEventListener('click', function() {
 				const searchTerm = document.getElementById('searchInput').value.trim();
+				// Clear category selection when searching
+				document.getElementById('categorySelect').value = '';
+				currentCategoryCode = '';
 				if (searchTerm) {
 					loadProducts(searchTerm);
 				} else {
@@ -692,9 +754,12 @@
 				}
 			});
 			
-			// Search on Enter key
+			// Search on Enter key - clear category when searching
 			document.getElementById('searchInput').addEventListener('keypress', function(e) {
 				if (e.key === 'Enter') {
+					// Clear category selection when searching
+					document.getElementById('categorySelect').value = '';
+					currentCategoryCode = '';
 					document.getElementById('searchButton').click();
 				}
 			});
@@ -709,13 +774,10 @@
 		document.addEventListener('DOMContentLoaded', function() {
 			// Add event listener for manual processing button
 			document.getElementById('startProcessingBtn').addEventListener('click', startManualProcessing);
-			
 			// Initialize the application
 			initializeApplication();
-			
 			// Show initial search prompt
 			showSearchPrompt();
-			
 			// Start checking processing status
 			checkProcessingStatus();
 		});

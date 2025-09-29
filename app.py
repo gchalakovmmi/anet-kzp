@@ -8,9 +8,7 @@ import os
 from config import Config
 from database import Database
 from processor import DataProcessor
-
 app = Flask(__name__)
-
 # Global variables to track processing status
 processing_status = {
 	'is_processing': False,
@@ -22,13 +20,10 @@ processing_status = {
 	'error': None,
 	'database_ready': False  # Track if database has been processed
 }
-
 # Global database instance
 db = None
-
 # Track if we're in the main process (not reloader)
 is_main_process = os.environ.get('WERKZEUG_RUN_MAIN') != 'true'
-
 # Category mapping (from the HTML select options)
 CATEGORIES = {
 	'1': '1. Бял хляб от 500 гр. до 1 кг',
@@ -104,7 +99,6 @@ CATEGORIES = {
 	'84': '84. Класически мокри кърпи пакет',
 	'85': '85. Тоалетна хартия 8 ролки'
 }
-
 def check_database_ready():
 	"""Check if database has been processed and has data"""
 	global db
@@ -116,23 +110,18 @@ def check_database_ready():
 	except Exception as e:
 		logging.error(f"Error checking database readiness: {e}")
 	return False
-
 def initialize_database_tables():
 	"""Initialize database tables without processing data"""
 	global db
 	try:
 		config = Config('./config.yaml')
 		db = Database('./products.sqlite')
-		
 		# Create tables if they don't exist
 		db.create_tables()
-		
 		# Save category mapping to database
 		db.save_category_mapping(CATEGORIES)
-		
 		# Update database ready status
 		processing_status['database_ready'] = check_database_ready()
-		
 		logging.info("Database tables initialized successfully")
 		return True
 	except Exception as e:
@@ -144,47 +133,38 @@ def initialize_database_tables():
 			return True
 		logging.error(f"Error initializing database tables: {e}")
 		return False
-
 def initialize_app():
 	"""Initialize the application with database setup and data processing"""
 	global processing_status, db
-	
 	# Skip if we're in the reloader process
 	if not is_main_process:
 		logging.info("Skipping data processing in reloader process")
 		processing_status['is_processing'] = False
 		processing_status['message'] = 'Processing skipped in reloader process'
 		return
-	
 	processing_status['is_processing'] = True
 	processing_status['message'] = 'Starting database setup...'
 	try:
 		config = Config('./config.yaml')
 		db = Database('./products.sqlite')
-		
 		# Get markets and total count for progress tracking
 		markets = config.get_markets()
 		total_markets = len(markets)
 		processing_status['total_markets'] = total_markets
-		
 		# --- SAVE CURRENT CATEGORIES BEFORE DROPPING TABLES ---
 		processing_status['message'] = 'Saving current category assignments...'
 		current_categories = db.get_current_categories()
 		logging.info(f"Saved {len(current_categories)} category assignments.")
-		
 		# Drop and recreate tables for clean start (preserves product_categories)
 		processing_status['message'] = 'Setting up database tables...'
 		db.drop_tables()
 		db.create_tables()
-		
 		# Save category mapping to database
 		db.save_category_mapping(CATEGORIES)
-		
 		# Process Paradox data, passing the saved categories
 		processing_status['message'] = 'Starting data processing...'
 		processor = DataProcessor(markets, db, processing_status, current_categories)
 		processor.paradox_to_sqlite()
-		
 		processing_status['is_processing'] = False
 		processing_status['message'] = 'Data processing completed successfully!'
 		processing_status['database_ready'] = True
@@ -193,50 +173,40 @@ def initialize_app():
 		processing_status['is_processing'] = False
 		processing_status['error'] = str(e)
 		processing_status['message'] = f'Error during processing: {e}'
-
 def start_processing_thread():
 	"""Start processing in a background thread"""
 	processing_thread = threading.Thread(target=initialize_app)
 	processing_thread.daemon = True
 	processing_thread.start()
-
 # Check if we should run processing automatically on startup
 config = Config('./config.yaml')
 processing_config = config.get_processing_config()
 processing_mode = processing_config.get('mode', 'startup')
-
 # Initialize database tables in all modes
 if not initialize_database_tables():
 	logging.error("Failed to initialize database tables")
-
 # Start data processing only in startup mode and in main process
 if processing_mode == 'startup' and is_main_process:
 	logging.info("Starting automatic data processing in startup mode")
 	start_processing_thread()
 else:
 	logging.info(f"Processing mode: {processing_mode}, Main process: {is_main_process}")
-
 @app.route('/')
 def categories():
 	return render_template('categories.html')
-
 @app.route('/api/processing-status')
 def get_processing_status():
 	return jsonify(processing_status)
-
 @app.route('/api/start-processing', methods=['POST'])
 def start_processing():
 	"""Manually start data processing"""
 	global processing_status
-	
 	# Skip if we're in the reloader process
 	if not is_main_process:
 		return jsonify({'success': False, 'error': 'Cannot start processing in reloader process. Please restart the application without debug mode.'})
-	
 	# Check if processing is already running
 	if processing_status['is_processing']:
 		return jsonify({'success': False, 'error': 'Processing is already running'})
-	
 	# Reset processing status
 	processing_status = {
 		'is_processing': True,
@@ -248,18 +218,14 @@ def start_processing():
 		'error': None,
 		'database_ready': False
 	}
-	
 	# Start processing in background thread
 	start_processing_thread()
-	
 	return jsonify({'success': True, 'message': 'Processing started successfully'})
-
 @app.route('/api/search')
 def search_products():
 	search_term = request.args.get('q', '')
 	if not db:
 		return jsonify({'error': 'Database not ready'})
-	
 	products = db.search_products(search_term)
 	product_list = []
 	for product in products:
@@ -275,61 +241,77 @@ def search_products():
 			'item_retail_price': product['item_retail_price'],
 			'item_promotional_price': product['item_promotional_price']
 		})
-	
 	return jsonify({'products': product_list, 'search_term': search_term})
+
+# Add this new endpoint for category-based filtering
+@app.route('/api/products-by-category')
+def get_products_by_category():
+	category_code = request.args.get('category_code', '')
+	if not db:
+		return jsonify({'error': 'Database not ready'})
+	
+	if category_code:
+		# Get products for specific category
+		products = db.get_products_by_category(category_code)
+	else:
+		# If no category specified, get all categorized products
+		products = db.get_products_by_category()
+	
+	product_list = []
+	for product in products:
+		category_name = db.get_category_name(product['item_kzp_category_code']) if product['item_kzp_category_code'] else ""
+		product_list.append({
+			'id': product['id'],
+			'settlement': product['settlement'],
+			'market_name': product['market_name'],
+			'item_name': product['item_name'],
+			'item_code': product['item_code'],
+			'item_kzp_category_code': product['item_kzp_category_code'],
+			'item_kzp_category_name': category_name,
+			'item_retail_price': product['item_retail_price'],
+			'item_promotional_price': product['item_promotional_price']
+		})
+	return jsonify({'products': product_list, 'category_code': category_code})
 
 @app.route('/api/update-category', methods=['POST'])
 def update_category():
 	if not db:
 		return jsonify({'success': False, 'error': 'Database not ready'})
-	
 	data = request.json
 	product_ids = data.get('product_ids', [])
 	category_code = data.get('category_code', '')
-	
 	if not product_ids:
 		return jsonify({'success': False, 'error': 'No products selected'})
-	
 	if not category_code:
 		return jsonify({'success': False, 'error': 'No category selected'})
-	
 	success = db.update_product_category(product_ids, category_code)
 	category_name = CATEGORIES.get(category_code, '')
-	
 	return jsonify({
 		'success': success,
 		'category_name': category_name,
 		'category_code': category_code,
 		'updated_count': len(product_ids)
 	})
-
 @app.route('/api/remove-category', methods=['POST'])
 def remove_category():
 	if not db:
 		return jsonify({'success': False, 'error': 'Database not ready'})
-	
 	data = request.json
 	product_ids = data.get('product_ids', [])
-	
 	if not product_ids:
 		return jsonify({'success': False, 'error': 'No products selected'})
-	
 	success = db.remove_product_category(product_ids)
-	
 	return jsonify({
 		'success': success,
 		'updated_count': len(product_ids)
 	})
-
 @app.route('/api/export-csv')
 def export_csv():
 	if not db:
 		return Response("Database not ready", status=500)
-	
 	products = db.get_products_by_category()
 	output = io.StringIO()
 	writer = csv.writer(output, quoting=csv.QUOTE_ALL)
-	
 	writer.writerow([
 		'Населено място',
 		'Търговски обект',
@@ -339,7 +321,6 @@ def export_csv():
 		'Цена на дребно',
 		'Цена в промоция'
 	])
-	
 	for product in products:
 		writer.writerow([
 			product['settlement'],
@@ -350,11 +331,9 @@ def export_csv():
 			str(product['item_retail_price']) if product['item_retail_price'] is not None else "",
 			str(product['item_promotional_price']) if product['item_promotional_price'] is not None else ""
 		])
-	
 	output.seek(0)
 	response = Response(output.getvalue(), mimetype='text/csv')
 	response.headers['Content-Disposition'] = 'attachment; filename=categorized_products.csv'
 	return response
-
 if __name__ == '__main__':
 	app.run(debug=False, host='0.0.0.0', port=5000)

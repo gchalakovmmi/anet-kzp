@@ -1,5 +1,5 @@
 processing:
-  mode: startup # Options: startup, manual, scheduled
+  mode: manual # Options: startup, manual, scheduled
   scheduled_time: "03:00"  # Only used if mode is scheduled (format: "HH:MM")
 
 markets:
