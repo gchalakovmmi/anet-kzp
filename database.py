@@ -74,7 +74,7 @@ class Database:
 			name TEXT NOT NULL
 		)
 		"""
-
+		
 		with self.connect() as conn:
 			conn.execute(create_table_sql)
 			conn.execute(create_fts_sql)
@@ -93,10 +93,11 @@ class Database:
 		Returns a dictionary mapping (market_name, item_code) tuple to category_code.
 		"""
 		select_sql = """
-		SELECT market_name, item_code, category_code 
-		FROM product_categories 
+		SELECT market_name, item_code, category_code
+		FROM product_categories
 		WHERE category_code IS NOT NULL
 		"""
+		
 		category_map = {}
 		try:
 			with self.connect() as conn:
@@ -108,6 +109,7 @@ class Database:
 						category_map[key] = row['category_code']
 		except sqlite3.Error as e:
 			logging.error(f"Error fetching current categories: {e}")
+		
 		return category_map
 
 	def insert_products_batch(self, products_data: list) -> bool:
@@ -115,12 +117,13 @@ class Database:
 		if not products_data:
 			logging.info("No products to insert for this batch.")
 			return True
-
+		
 		insert_sql = """
 		INSERT OR REPLACE INTO products
 		(settlement, market_name, item_name, item_code, item_retail_price, item_promotional_price)
 		VALUES (?, ?, ?, ?, ?, ?)
 		"""
+		
 		try:
 			with self.connect() as conn:
 				conn.executemany(insert_sql, products_data)
@@ -140,16 +143,17 @@ class Database:
 		if not category_assignments:
 			logging.info("No category assignments to update.")
 			return True
-
+		
 		update_sql = """
-		INSERT OR REPLACE INTO product_categories 
+		INSERT OR REPLACE INTO product_categories
 		(market_name, item_code, category_code)
 		VALUES (?, ?, ?)
 		"""
+		
 		try:
 			with self.connect() as conn:
 				# Convert (category_code, market_name, item_code) to (market_name, item_code, category_code)
-				assignments_for_db = [(market_name, item_code, category_code) 
+				assignments_for_db = [(market_name, item_code, category_code)
 									for category_code, market_name, item_code in category_assignments]
 				conn.executemany(update_sql, assignments_for_db)
 				conn.commit()
@@ -175,21 +179,21 @@ class Database:
 		"""Search products using FTS5 and join with product_categories to get category info"""
 		if not search_term.strip():
 			return []
-
+		
 		search_words = search_term.strip().split()
 		if not search_words:
 			return []
-
+		
 		fts_conditions = []
 		for word in search_words:
 			if word:
 				fts_conditions.append(f'"{word}"*')
-
+		
 		if not fts_conditions:
 			return []
-
+		
 		fts_query = ' NEAR('.join(fts_conditions) + ')' * (len(fts_conditions) - 1)
-
+		
 		search_sql = """
 		SELECT p.*, pc.category_code as item_kzp_category_code
 		FROM products p
@@ -198,6 +202,7 @@ class Database:
 		WHERE products_fts MATCH ?
 		ORDER BY rank, p.market_name, p.item_name
 		"""
+		
 		try:
 			with self.connect() as conn:
 				cursor = conn.execute(search_sql, (fts_query,))
@@ -219,6 +224,7 @@ class Database:
 		LEFT JOIN product_categories pc ON p.market_name = pc.market_name AND p.item_code = pc.item_code
 		ORDER BY p.market_name, p.item_name
 		"""
+		
 		try:
 			with self.connect() as conn:
 				cursor = conn.execute(select_sql)
@@ -231,7 +237,7 @@ class Database:
 		"""Update the category for multiple products in product_categories table"""
 		if not product_ids:
 			return True
-
+		
 		# Get the product details for the given IDs
 		placeholders = ','.join('?' * len(product_ids))
 		get_products_sql = f"""
@@ -239,7 +245,7 @@ class Database:
 		"""
 		
 		update_sql = """
-		INSERT OR REPLACE INTO product_categories 
+		INSERT OR REPLACE INTO product_categories
 		(market_name, item_code, category_code)
 		VALUES (?, ?, ?)
 		"""
@@ -261,6 +267,39 @@ class Database:
 			print(f"Error updating product categories: {e}")
 			return False
 
+	def remove_product_category(self, product_ids: list) -> bool:
+		"""Remove category assignments for multiple products"""
+		if not product_ids:
+			return True
+		
+		# Get the product details for the given IDs
+		placeholders = ','.join('?' * len(product_ids))
+		get_products_sql = f"""
+		SELECT market_name, item_code FROM products WHERE id IN ({placeholders})
+		"""
+		
+		delete_sql = """
+		DELETE FROM product_categories 
+		WHERE market_name = ? AND item_code = ?
+		"""
+		
+		try:
+			with self.connect() as conn:
+				# Get product details
+				cursor = conn.execute(get_products_sql, product_ids)
+				products = cursor.fetchall()
+				
+				if not products:
+					return False
+				
+				# Remove category assignments
+				assignments = [(product['market_name'], product['item_code']) for product in products]
+				conn.executemany(delete_sql, assignments)
+				return True
+		except sqlite3.Error as e:
+			print(f"Error removing product categories: {e}")
+			return False
+
 	def get_products_by_category(self, category_code: str = None) -> list:
 		"""Get products filtered by category from product_categories table"""
 		if category_code:
@@ -280,6 +319,7 @@ class Database:
 			ORDER BY p.market_name, p.item_name
 			"""
 			params = []
+		
 		try:
 			with self.connect() as conn:
 				cursor = conn.execute(select_sql, params)
@@ -292,6 +332,7 @@ class Database:
 		"""Get category name by code"""
 		if not category_code:
 			return ""
+		
 		select_sql = "SELECT name FROM categories WHERE code = ?"
 		try:
 			with self.connect() as conn:
@@ -315,11 +356,12 @@ class Database:
 	def cleanup_orphaned_categories(self):
 		"""Remove category assignments for products that no longer exist"""
 		cleanup_sql = """
-		DELETE FROM product_categories 
+		DELETE FROM product_categories
 		WHERE (market_name, item_code) NOT IN (
 			SELECT market_name, item_code FROM products
 		)
 		"""
+		
 		try:
 			with self.connect() as conn:
 				cursor = conn.execute(cleanup_sql)
