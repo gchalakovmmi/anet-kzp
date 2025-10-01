@@ -12,11 +12,9 @@ class DataProcessor:
 		self.status = status_dict
 		self.category_assignments = category_assignments or {}
 		self.log_file = './skipped_rows.log'
-		
 		with open(self.log_file, 'w', encoding='utf-8') as f:
 			f.write("Skipped rows log - Started at: " + time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
 			f.write("=" * 80 + "\n")
-		
 		logging.basicConfig(
 			level=logging.INFO,
 			format='%(asctime)s - %(levelname)s - %(message)s',
@@ -115,6 +113,21 @@ class DataProcessor:
 						sys.stdout.write(f'Overall Progress: [{bar}] {progress}% ({processed_rows}/{total_all_rows} rows)')
 						sys.stdout.flush()
 
+					# Check Act column - skip if not equal to '*'
+					if row.Act != '*':
+						product_data = (
+							market_info['settlement'],
+							f"{market_info['name']} {market_info['address']}",
+							str(row.Item) if hasattr(row, 'Item') and row.Item is not None else None,
+							str(row.id) if hasattr(row, 'id') and row.id is not None else None,
+							float(row.ClientPrice) if hasattr(row, 'ClientPrice') and row.ClientPrice is not None else 0.0,
+							None
+						)
+						self._log_skipped_row(market_name, row_num, product_data, f"Act column not equal to '*' (value: {row.Act})")
+						logging.info(f"Row {row_num} in {market_name} skipped due to Act column value: {row.Act}")
+						skipped_rows += 1
+						continue
+
 					# Pre-validate row attributes
 					missing_attributes = []
 					if not hasattr(row, 'Item') or row.Item is None:
@@ -172,7 +185,6 @@ class DataProcessor:
 				# Insert batch for current market
 				logging.info(f"Inserting batch of {len(current_batch)} products from {market_name}...")
 				success = self.db.insert_products_batch(current_batch)
-				
 				if success:
 					total_rows += len(current_batch)
 					logging.info(f"Successfully inserted batch of {len(current_batch)} products from {market_name}.")
