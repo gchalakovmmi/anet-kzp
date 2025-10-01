@@ -11,7 +11,6 @@ from processor import DataProcessor
 
 # Configure logging to reduce verbosity
 logging.getLogger('werkzeug').setLevel(logging.WARNING)
-
 app = Flask(__name__)
 
 # Global variables to track processing status
@@ -147,15 +146,16 @@ def initialize_database_tables():
 def initialize_app():
 	"""Initialize the application with database setup and data processing"""
 	global processing_status, db
+	
 	# Skip if we're in the reloader process
 	if not is_main_process:
 		logging.info("Skipping data processing in reloader process")
 		processing_status['is_processing'] = False
 		processing_status['message'] = 'Processing skipped in reloader process'
 		return
-
+	
 	processing_status['is_processing'] = True
-	processing_status['message'] = 'Starting database setup...'
+	processing_status['message'] = 'Starting data processing...'
 	
 	try:
 		config = Config('./config.yaml')
@@ -180,7 +180,8 @@ def initialize_app():
 		db.save_category_mapping(CATEGORIES)
 		
 		# Process Paradox data, passing the saved categories
-		processing_status['message'] = 'Starting data processing...'
+		# BACKUP IS NOW HANDLED INSIDE THE PROCESSOR ITSELF
+		processing_status['message'] = 'Starting data processing with backup...'
 		processor = DataProcessor(markets, db, processing_status, current_categories)
 		processor.paradox_to_sqlite()
 		
@@ -258,7 +259,6 @@ def search_products():
 	search_term = request.args.get('q', '')
 	if not db:
 		return jsonify({'error': 'Database not ready'})
-	
 	products = db.search_products(search_term)
 	product_list = []
 	for product in products:
@@ -282,14 +282,12 @@ def get_products_by_category():
 	category_code = request.args.get('category_code', '')
 	if not db:
 		return jsonify({'error': 'Database not ready'})
-	
 	if category_code:
 		# Get products for specific category
 		products = db.get_products_by_category(category_code)
 	else:
 		# If no category specified, get all categorized products
 		products = db.get_products_by_category()
-	
 	product_list = []
 	for product in products:
 		category_name = db.get_category_name(product['item_kzp_category_code']) if product['item_kzp_category_code'] else ""
@@ -310,20 +308,15 @@ def get_products_by_category():
 def update_category():
 	if not db:
 		return jsonify({'success': False, 'error': 'Database not ready'})
-	
 	data = request.json
 	product_ids = data.get('product_ids', [])
 	category_code = data.get('category_code', '')
-	
 	if not product_ids:
 		return jsonify({'success': False, 'error': 'No products selected'})
-	
 	if not category_code:
 		return jsonify({'success': False, 'error': 'No category selected'})
-	
 	success = db.update_product_category(product_ids, category_code)
 	category_name = CATEGORIES.get(category_code, '')
-	
 	return jsonify({
 		'success': success,
 		'category_name': category_name,
@@ -335,15 +328,11 @@ def update_category():
 def remove_category():
 	if not db:
 		return jsonify({'success': False, 'error': 'Database not ready'})
-	
 	data = request.json
 	product_ids = data.get('product_ids', [])
-	
 	if not product_ids:
 		return jsonify({'success': False, 'error': 'No products selected'})
-	
 	success = db.remove_product_category(product_ids)
-	
 	return jsonify({
 		'success': success,
 		'updated_count': len(product_ids)
@@ -353,11 +342,9 @@ def remove_category():
 def export_csv():
 	if not db:
 		return Response("Database not ready", status=500)
-	
 	products = db.get_products_by_category()
 	output = io.StringIO()
 	writer = csv.writer(output, quoting=csv.QUOTE_ALL)
-	
 	writer.writerow([
 		'Населено място',
 		'Търговски обект',
@@ -367,7 +354,6 @@ def export_csv():
 		'Цена на дребно',
 		'Цена в промоция'
 	])
-	
 	for product in products:
 		writer.writerow([
 			product['settlement'],
@@ -378,7 +364,6 @@ def export_csv():
 			str(product['item_retail_price']) if product['item_retail_price'] is not None else "",
 			str(product['item_promotional_price']) if product['item_promotional_price'] is not None else ""
 		])
-	
 	output.seek(0)
 	response = Response(output.getvalue(), mimetype='text/csv')
 	response.headers['Content-Disposition'] = 'attachment; filename=categorized_products.csv'

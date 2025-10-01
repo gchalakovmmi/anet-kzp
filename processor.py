@@ -4,6 +4,8 @@ import sys
 import time
 import os
 import logging
+import shutil
+from datetime import datetime
 
 class DataProcessor:
 	def __init__(self, markets: list, db: Database, status_dict: dict, category_assignments: dict = None):
@@ -23,6 +25,65 @@ class DataProcessor:
 			],
 			force=True
 		)
+
+	def _create_backup(self):
+		"""Create a backup of the current SQLite database - MANDATORY first step"""
+		backup_dir = './backup'
+		current_db_path = './products.sqlite'
+		
+		self._update_status("Backup", 0, "Starting database backup...")
+		logging.info("Starting database backup process")
+		
+		# Create backup directory if it doesn't exist
+		if not os.path.exists(backup_dir):
+			os.makedirs(backup_dir)
+			logging.info(f"Created backup directory: {backup_dir}")
+		
+		# Check if source database exists
+		if not os.path.exists(current_db_path):
+			error_msg = f"Cannot create backup: Source database not found: {current_db_path}"
+			logging.error(error_msg)
+			self._update_status("Backup Failed", 0, error_msg)
+			return None
+		
+		# Generate backup filename with date and incrementing ID
+		today = datetime.now().strftime('%Y%m%d_%H%M%S')
+		backup_pattern = f"products_{today}_"
+		
+		# Find existing backups for this exact timestamp to determine next ID
+		existing_backups = []
+		for filename in os.listdir(backup_dir):
+			if filename.startswith(backup_pattern) and filename.endswith('.sqlite'):
+				try:
+					# Extract the ID from filename: products_YYYYMMDD_HHMMSS_ID.sqlite
+					id_part = filename.replace(backup_pattern, '').replace('.sqlite', '')
+					backup_id = int(id_part)
+					existing_backups.append(backup_id)
+				except ValueError:
+					continue
+		
+		# Determine next backup ID
+		next_id = 1
+		if existing_backups:
+			next_id = max(existing_backups) + 1
+		
+		# Create backup filename
+		backup_filename = f"products_{today}_{next_id}.sqlite"
+		backup_path = os.path.join(backup_dir, backup_filename)
+		
+		try:
+			# Copy the database file
+			self._update_status("Backup", 0, f"Creating backup: {backup_filename}")
+			shutil.copy2(current_db_path, backup_path)
+			success_msg = f"Database backup created successfully: {backup_path}"
+			logging.info(success_msg)
+			self._update_status("Backup Complete", 0, success_msg)
+			return backup_path
+		except Exception as e:
+			error_msg = f"Failed to create database backup: {e}"
+			logging.error(error_msg)
+			self._update_status("Backup Failed", 0, error_msg)
+			return None
 
 	def _update_status(self, market_name: str, progress: int, message: str):
 		"""Update the global processing status"""
@@ -54,7 +115,19 @@ class DataProcessor:
 		logging.warning(f"Skipped row {row_num} in {market_name}: {reason}")
 
 	def paradox_to_sqlite(self):
-		"""Convert Paradox database data to SQLite with persistent categories"""
+		"""Convert Paradox database data to SQLite with persistent categories - WITH MANDATORY BACKUP"""
+		
+		# MANDATORY FIRST STEP: Create backup
+		backup_path = self._create_backup()
+		if not backup_path:
+			# If backup fails, stop processing immediately
+			error_msg = "Processing stopped: Database backup failed"
+			self.status['error'] = error_msg
+			self.status['message'] = error_msg
+			logging.error("PROCESSING STOPPED: Backup creation failed")
+			return
+
+		# Continue with processing only if backup was successful
 		total_rows = 0
 		skipped_rows = 0
 		market_count = 0
@@ -114,7 +187,7 @@ class DataProcessor:
 						sys.stdout.flush()
 
 					# Check Act column - skip if not equal to '*'
-					if row.Act != '*':
+					if hasattr(row, 'Act') and row.Act is not None and row.Act != '*':
 						product_data = (
 							market_info['settlement'],
 							f"{market_info['name']} {market_info['address']}",
@@ -231,7 +304,8 @@ class DataProcessor:
 		
 		# Final status update
 		sys.stdout.write('\r\x1b[K')
-		self._update_status("Complete", 100, f"Processing completed: {total_rows} rows inserted, {skipped_rows} rows skipped")
+		success_msg = f"Processing completed successfully! {total_rows} rows inserted, {skipped_rows} rows skipped"
+		self._update_status("Complete", 100, success_msg)
 		logging.info(f"Paradox to SQLite conversion completed: {total_rows} rows inserted, {skipped_rows} rows skipped")
 		print(f"\nParadox to SQLite conversion completed: {total_rows} rows inserted, {skipped_rows} rows skipped")
 		print(f"Skipped rows logged to: {self.log_file}")
