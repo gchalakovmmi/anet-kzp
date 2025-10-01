@@ -217,8 +217,8 @@ else:
 	logging.info(f"Processing mode: {processing_mode}, Main process: {is_main_process}")
 
 @app.route('/')
-def categories():
-	return render_template('categories.html')
+def index():
+	return render_template('index.html')
 
 @app.route('/api/processing-status')
 def get_processing_status():

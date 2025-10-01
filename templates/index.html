@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Добавяне на продукти в категории</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+	<div class="container-fluid">
+		<div class="card shadow">
+			<div class="card-header d-flex justify-content-between align-items-center">
+				<h1 class="h3 mb-0"><i class="bi bi-cart-check"></i> Добавяне на продукти в категории</h1>
+				<div class="header-buttons">
+					<button id="startProcessingBtn" class="btn btn-processing">
+						<i class="bi bi-play-fill"></i> Обработка на данни
+					</button>
+					<button id="exportCsv" class="btn btn-export">
+						<i class="bi bi-download"></i> Експорт CSV
+					</button>
+				</div>
+			</div>
+			<div class="card-body">
+				<!-- Loading Screen -->
+				<div id="loadingScreen" class="loading-screen">
+					<div class="spinner-border text-success" style="width: 3rem; height: 3rem;" role="status">
+						<span class="visually-hidden">Loading...</span>
+					</div>
+					<h3 class="mt-3" id="loadingTitle">Обработка на данни...</h3>
+					<p id="loadingMessage">Моля, изчакайте докато се обработват данните от базата.</p>
+					<div class="progress">
+						<div id="loadingProgress" class="progress-bar progress-bar-striped progress-bar-animated"
+							role="progressbar" style="width: 0%"></div>
+					</div>
+					<div id="loadingDetails" class="mt-2">
+						<small>Обработва се: <span id="currentMarket">-</span></small><br>
+						<small>Прогрес: <span id="progressPercent">0</span>%</small>
+					</div>
+					<div id="errorMessage" class="error-message mt-3" style="display: none;">
+						<h5><i class="bi bi-exclamation-triangle"></i> Грешка при обработка на данните</h5>
+						<p id="errorText"></p>
+						<button class="btn btn-warning mt-2" onclick="location.reload()">Опитайте отново</button>
+					</div>
+				</div>
+				<!-- Main Content -->
+				<div id="mainContent" class="main-content">
+					<!-- Category selection -->
+					<div class="row mb-3">
+						<div class="col-md-12">
+							<label for="categorySelect" class="form-label fw-bold">Избери категория:</label>
+							<select class="form-select" id="categorySelect">
+								<option value="" selected>-- Моля, изберете категория --</option>
+								<option value="1">1. Бял хляб от 500 гр. до 1 кг</option>
+								<option value="2">2. Хляб Добруджа от 500 гр. до 1 кг</option>
+								<option value="3">3. Ръжен хляб от 400 гр. до 600 гр.</option>
+								<option value="4">4. Типов хляб от 400 гр. до 600 гр.</option>
+								<option value="5">5. Точени кори от 400 гр. до 500 гр.</option>
+								<option value="6">6. Прясно мляко от 2 % до 3.6 % 1 л</option>
+								<option value="7">7. Кисело мляко от 2 % до 3.6 % в кофички от 370 гр. до 500 гр.</option>
+								<option value="8">8. Сирене от краве мляко насипно 1 кг</option>
+								<option value="9">9. Сирене от краве мляко пакетирано за 1 кг</option>
+								<option value="10">10. Кашкавал от краве мляко насипно 1 кг</option>
+								<option value="11">11. Кашкавал от краве мляко пакетирано за 1 кг</option>
+								<option value="12">12. Краве масло от 125 гр. до 250 гр.</option>
+								<option value="13">13. Извара насипна 1 кг.</option>
+								<option value="14">14. Извара пакетирана от 200 гр. до 1 кг.</option>
+								<option value="15">15. Прясно охладено пиле 1 кг (цяло)</option>
+								<option value="16">16. Пилешко филе, охладено, 1 кг</option>
+								<option value="17">17. Пилешки бут, цял, охладен 1 кг</option>
+								<option value="18">18. Прясно свинско месо плешка 1 кг</option>
+								<option value="19">19. Прясно свинско месо бут 1 кг</option>
+								<option value="20">20. Прясно свинско месо шол 1 кг</option>
+								<option value="21">21. Прясно свинско месо врат 1 кг</option>
+								<option value="22">22. Свинско месо за готвене 1 кг</option>
+								<option value="23">23. Телешко месо шол 1 кг</option>
+								<option value="24">24. Телешко месо за готвене 1 кг</option>
+								<option value="25">25. Мляно месо смес 60/40, насипно за 1 кг</option>
+								<option value="26">26. Кренвирши, насипни за 1 кг.</option>
+								<option value="27">27. Колбаси пресни от 300 гр. до 1 кг.</option>
+								<option value="28">28. Колбаси сухи (Шпек, Бургас, Деликатесен) от 250 гр. до 1 кг.</option>
+								<option value="29">29. Риба замразена (скумрия, пъстърва, лаврак, ципура) 1 кг</option>
+								<option value="31">31. Яйца размер М от 6 бр. до 10 бр. Подово отглеждане</option>
+								<option value="32">32. Яйца размер L 6 бр. до 10 бр. Подово отглеждане</option>
+								<option value="33">33. Боб, пакетиран 1 кг</option>
+								<option value="34">34. Леща, пакетиран 1 кг</option>
+								<option value="35">35. Бисерен ориз 1 кг</option>
+								<option value="36">36. Макарони от 400 гр. до 500 гр.</option>
+								<option value="37">37. Спагети (№ 3, № 5 и № 10) 500 гр.</option>
+								<option value="38">38. Бяла захар 1 кг</option>
+								<option value="39">39. Готварска сол 1 кг</option>
+								<option value="40">40. Брашно тип 500 1 кг</option>
+								<option value="41">41. Брашно екстра 1 кг</option>
+								<option value="42">42. Олио слънчогледово 1 л</option>
+								<option value="43">43. Зехтин 1л</option>
+								<option value="44">44. Винен оцет 700 мл.</option>
+								<option value="45">45. Ябълков оцет 700 мл.</option>
+								<option value="46">46. Консерви боб, от 400 гр. до 800 гр.</option>
+								<option value="47">47. Консерви грах, от 400 гр. до 800 гр.</option>
+								<option value="48">48. Консервирани домати, от 400 гр. до 800 гр.</option>
+								<option value="49">49. Лютеница, от 400 гр. до 800 гр.</option>
+								<option value="62">62. Маслини, насипни 1 кг</option>
+								<option value="63">63. Каша (млечна, плодова) от 190 гр. до 250 гр.</option>
+								<option value="64">64. Детско пюре от 190 гр. до 250 гр.</option>
+								<option value="65">65. Адаптирани млека от 400 гр. до 800 гр.</option>
+								<option value="66">66. Обикновени бисквити</option>
+								<option value="67">67. Кроасани от 50 гр. до 110 гр.</option>
+								<option value="68">68. Баница от 100 гр. до 500 гр.</option>
+								<option value="69">69. Шоколад, млечен, от 80 гр. до 100 гр.</option>
+								<option value="70">70. Кафе мляно от 200 гр. до 250 гр.</option>
+								<option value="71">71. Кафе на зърна 1 кг</option>
+								<option value="72">72. Чай (билков на пакетчета)</option>
+								<option value="73">73. Минерална вода, 6 бр. в опаковка по 1,5 л.</option>
+								<option value="74">74. Светла бира 2 л.</option>
+								<option value="75">75. Бяло вино бутилирано, произход България 750 мл.</option>
+								<option value="76">76. Червено вино бутилирано, произход България 750 мл.</option>
+								<option value="77">77. Ракия, произход България 700 мл.</option>
+								<option value="78">78. Тютюневи изделия, произход България, кутия, пакет</option>
+								<option value="79">79. Течен препарат за миене на съдове от 400 мл.</option>
+								<option value="80">80. Четка за зъби – средна твърдост</option>
+								<option value="81">81. Паста за зъби, туба от 50 мл. до 125 мл.</option>
+								<option value="82">82. Шампоан за нормална коса – от 250 мл. до 500 мл.</option>
+								<option value="83">83. Сапун, твърд</option>
+								<option value="84">84. Класически мокри кърпи пакет</option>
+								<option value="85">85. Тоалетна хартия 8 ролки</option>
+							</select>
+						</div>
+					</div>
+					<!-- Search section -->
+					<div class="search-section">
+						<div class="row">
+							<div class="col-md-8">
+								<div class="input-group">
+									<span class="input-group-text bg-light">
+										<i class="bi bi-search"></i>
+									</span>
+									<input type="text" class="form-control" placeholder="Търсене на продукти..." id="searchInput">
+									<button class="btn btn-outline-secondary clear-search-btn" type="button" id="clearSearchButton" title="Изчисти търсенето">
+										<i class="bi bi-x"></i>
+									</button>
+									<button class="btn btn-primary search-btn" type="button" id="searchButton">
+										Търси
+									</button>
+								</div>
+								<small class="text-muted mt-1">Можете да търсите с части от думите, напр. "кис мл 2%" ще намери "кисело мляко 2%"</small>
+							</div>
+							<div class="col-md-4 action-buttons">
+								<button class="btn btn-success" id="addToCategory">
+									<i class="bi bi-plus-circle"></i> Добави към категория
+								</button>
+								<button class="btn btn-danger" id="removeFromCategory">
+									<i class="bi bi-dash-circle"></i> Премахни от категория
+								</button>
+								<button class="btn btn-outline-secondary" id="clearSelection">
+									Изчисти избора
+								</button>
+							</div>
+						</div>
+					</div>
+					<!-- Items table -->
+					<div class="table-container">
+						<table class="table table-hover">
+							<thead class="table-light">
+								<tr>
+									<th scope="col" width="50">
+										<div class="form-check">
+											<input class="form-check-input" type="checkbox" id="selectAll">
+											<label class="form-check-label" for="selectAll"></label>
+										</div>
+									</th>
+									<th scope="col" class="sortable" data-column="settlement">
+										Населено място <span class="sort-indicator"></span>
+									</th>
+									<th scope="col" class="sortable" data-column="market_name">
+										Търговски обект <span class="sort-indicator"></span>
+									</th>
+									<th scope="col" class="sortable" data-column="item_name">
+										Наименование на продукта <span class="sort-indicator"></span>
+									</th>
+									<th scope="col" class="sortable" data-column="item_code">
+										Код на продукта <span class="sort-indicator"></span>
+									</th>
+									<th scope="col" class="sortable" data-column="item_kzp_category_name">
+										Категория <span class="sort-indicator"></span>
+									</th>
+									<th scope="col" class="sortable" data-column="item_retail_price">
+										Цена на дребно <span class="sort-indicator"></span>
+									</th>
+									<th scope="col" class="sortable" data-column="item_promotional_price">
+										Цена в промоция <span class="sort-indicator"></span>
+									</th>
+								</tr>
+							</thead>
+							<tbody id="productsTableBody">
+								<!-- Table rows will be populated by JavaScript -->
+							</tbody>
+						</table>
+						<div id="searchPrompt" class="search-prompt" style="display: none;">
+							<i class="bi bi-search" style="font-size: 3rem;"></i>
+							<h4>Въведете критерии за търсене</h4>
+							<p>Използвайте полето за търсене по-горе, за да намерите продукти.</p>
+							<p><small>Можете да търсите с части от думите, напр. "кис мл" ще намери "кисело мляко"</small></p>
+						</div>
+						<div id="noResults" class="no-results" style="display: none;">
+							<i class="bi bi-search" style="font-size: 3rem;"></i>
+							<h4>Няма намерени продукти</h4>
+							<p>Променете критериите за търсене и опитайте отново.</p>
+							<p><small>Опитайте с по-общи термини или различни ключови думи</small></p>
+						</div>
+					</div>
+					<!-- Selection summary -->
+					<div class="alert alert-info mt-3 mb-0">
+						<strong>Избрани продукти: <span id="selectedCount">0</span></strong>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
