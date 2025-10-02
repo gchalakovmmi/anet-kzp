@@ -187,7 +187,7 @@ class DataProcessor:
 						sys.stdout.flush()
 
 					# Check Act column - skip if not equal to '*'
-					if hasattr(row, 'Act') and row.Act is not None and row.Act != '*':
+					if row.Act != '*':
 						product_data = (
 							market_info['settlement'],
 							f"{market_info['name']} {market_info['address']}",
